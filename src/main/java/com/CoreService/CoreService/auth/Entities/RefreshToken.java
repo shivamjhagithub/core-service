@@ -20,6 +20,6 @@ public class RefreshToken {
     @Id
     private String id;
     private Instant expiresAt;
-
+    private String userId;
 
 }

@@ -1,14 +1,12 @@
 package com.CoreService.CoreService.auth.Response;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Setter
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class LoginResponse {
     String refreshtoken;
     String jwtToken;
