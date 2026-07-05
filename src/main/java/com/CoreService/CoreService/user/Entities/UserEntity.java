@@ -4,9 +4,15 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import lombok.*;
 
 import java.util.UUID;
 
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @Entity
 public class UserEntity {
     @Id
@@ -20,5 +26,6 @@ public class UserEntity {
     private String bloodGroup;
     private String email;
     private String password;
+    private Boolean activate;
 
 }
