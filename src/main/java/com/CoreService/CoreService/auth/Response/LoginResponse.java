@@ -8,10 +8,10 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 public class LoginResponse {
-    String refreshtoken;
+    String refreshToken;
     String jwtToken;
-    String messege;
+    String message;
     public LoginResponse(String messege){
-        this.messege=messege;
+        this.message=message;
     }
 }

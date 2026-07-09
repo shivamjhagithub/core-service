@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthService {
 
-   // private final UserRepository userRepository;
+    // private final UserRepository userRepository;
     @Autowired
     private final PasswordEncoder passwordEncoder;
     @Autowired
@@ -40,11 +40,20 @@ public class AuthService {
                 .message("Login Successful")
                 .build();
     }
-    public Boolean logout(String userId){
+
+    public Boolean logout(String userId) {
         return false;
     }
-     public LoginResponse updateRefreshTokenAndJwt(String refreshToken){
-        return null;
-     }
 
+    public LoginResponse updateRefreshTokenAndJwt(String refreshToken) {
+        return null;
     }
+
+    public void generateOtp(String otp) {
+    }
+
+    public boolean checkOtp(String otp) {
+        return false;
+    }
+
+}
