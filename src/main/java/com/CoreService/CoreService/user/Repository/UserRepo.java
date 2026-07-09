@@ -22,4 +22,8 @@ public interface UserRepo extends JpaRepository<UserEntity,Integer> {
     List<UserEntity> findByCollegeId(UUID collegeId);
 
     boolean existsById(@NotBlank String userid);
+
+    void deleteAllByCollegeId(UUID collegeId);
+
+    boolean existsByCollegeId(UUID collegeId);
 }

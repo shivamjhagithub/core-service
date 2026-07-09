@@ -100,17 +100,27 @@ public  class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void deleteUser(String userId) {
+    public boolean deleteUser(String userId) {
 
+        try{
         if (!userRepo.existsById(userId)) {
+            return false;
+        }
+        else{
+            userRepo.deleteById(userId);
+            return true;
+        }
+        }
+        catch (Exception e){
             throw new RuntimeException("User not found");
         }
 
-        userRepo.deleteById(userId);
+
+
     }
 
     @Override
-    public void activateUser(String userId) {
+    public boolean activateUser(String userId) {
 
         UserEntity user = userRepo.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -118,16 +128,42 @@ public  class UserServiceImpl implements UserService {
         user.setActivate(true);
 
         userRepo.save(user);
+        return true;
     }
 
     @Override
-    public void deActivateUser(String userId) {
+    public boolean deActivateUser(String userId) {
 
+        try{
         UserEntity user = userRepo.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         user.setActivate(false);
 
+
         userRepo.save(user);
+        return true;
+    }
+        catch(Exception e){
+            throw  new RuntimeException("User not found");
+        }
+    }
+    @Override
+    public boolean deleteAllUserByCollegeId(UUID collegeId){
+        try{
+            if(userRepo.existsByCollegeId(collegeId)) {
+                userRepo.deleteAllByCollegeId(collegeId);
+                return true;
+            }
+            else{
+                return false;
+            }
+
+        }
+        catch(Exception e){
+            throw  new RuntimeException("College not found");
+
+        }
+
     }
 }

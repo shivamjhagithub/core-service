@@ -11,7 +11,8 @@ public interface UserService {
     UserResponse getUserById(String userId);
     List<UserResponse> getAllUsers();
     List<UserResponse> getUsersByCollegeId(UUID collegeId);
-    void deleteUser(String userId);
-    void activateUser(String userId);
-    void deActivateUser(String userId);
+    boolean deleteUser(String userId);
+    boolean activateUser(String userId);
+    boolean deActivateUser(String userId);
+    boolean deleteAllUserByCollegeId(UUID collegeId);
 }

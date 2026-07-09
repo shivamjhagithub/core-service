@@ -1,5 +1,6 @@
-package com.CoreService.CoreService.user.controllers;
+package com.CoreService.CoreService.user.Contoller;
 
+import com.CoreService.CoreService.common.Response.BasicResponse;
 import com.CoreService.CoreService.common.context.UserContext;
 import com.CoreService.CoreService.user.Requests.UserRequsets;
 import com.CoreService.CoreService.user.Responses.UserResponse;
@@ -69,29 +70,39 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}")
-    public ResponseEntity<String> deleteUser(
+    public ResponseEntity<BasicResponse> deleteUser(
             @PathVariable String userId) {
 
-        userService.deleteUser(userId);
+        boolean ans =userService.deleteUser(userId);
+        if(ans){
+            return ResponseEntity.ok(BasicResponse.builder().success(true).message("User deleted successfully").build());
+        }
+        else{
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body(BasicResponse.builder().success(false).message("User not found").build());
 
-        return ResponseEntity.ok("User deleted successfully");
-    }
+        }}
 
     @PatchMapping("/{userId}/activate")
-    public ResponseEntity<String> activateUser(
+    public ResponseEntity<BasicResponse> activateUser(
             @PathVariable String userId) {
 
-        userService.activateUser(userId);
+        boolean ans =userService.activateUser(userId);
+        if(ans){
+            return ResponseEntity.ok(BasicResponse.builder().success(true).message("User activated successfully").build());
+        }
+        else{
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body(BasicResponse.builder().success(false).message("User activation unsuccessfull").build());
 
-        return ResponseEntity.ok("User activated successfully");
+        }
+
     }
 
     @PatchMapping("/{userId}/deactivate")
-    public ResponseEntity<String> deactivateUser(
+    public ResponseEntity<BasicResponse> deactivateUser(
             @PathVariable String userId) {
 
         userService.deActivateUser(userId);
 
-        return ResponseEntity.ok("User deactivated successfully");
+        return ResponseEntity.ok(BasicResponse.builder().success(true).message("User is deactivated").build());
     }
 }
