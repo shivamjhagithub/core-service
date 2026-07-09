@@ -44,8 +44,18 @@ services:
       - "4406:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+  redis:
+    image: redis:7.2
+    container_name: college-redis
+    ports:
+     - "6379:6379"
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
 
 volumes:
   kafka_data:
   mysql_data:
   zookeeper_data:
+  redis_data:

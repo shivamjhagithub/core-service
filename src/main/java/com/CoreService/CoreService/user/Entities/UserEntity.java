@@ -20,5 +20,4 @@ public class UserEntity {
     private String bloodGroup;
     private String email;
     private String password;
-
 }
