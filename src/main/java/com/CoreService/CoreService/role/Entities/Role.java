@@ -1,12 +1,13 @@
 package com.CoreService.CoreService.role.Entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import com.CoreService.CoreService.College.Entities.CollegeEntity;
+import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -16,11 +17,10 @@ import java.time.LocalDateTime;
 @Builder
 public class Role {
     @Id
-    private String roleId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID roleId;
     private String roleName;
     private String roleDescription;
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private CollegeEntity college;
 }

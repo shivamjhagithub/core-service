@@ -1,8 +1,13 @@
 package com.CoreService.CoreService.role.Controller;
 
+import com.CoreService.CoreService.common.Response.BasicResponse;
 import com.CoreService.CoreService.role.Requests.RoleRequest;
 import com.CoreService.CoreService.role.Response.RoleResponse;
+import com.CoreService.CoreService.role.Response.UserDataResponse;
 import com.CoreService.CoreService.role.Services.RoleService;
+import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -13,37 +18,39 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/roles")
-@RequiredArgsConstructor
 public class RoleController {
 
-    @Autowired
     private final RoleService roleService;
 
-    @PostMapping("/create")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
     public ResponseEntity<RoleResponse> createRole(
             @Valid @RequestBody RoleRequest request) {
 
-        RoleResponse response = roleService.createRole(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(roleService.createRole(request));
     }
 
-    @GetMapping("/getAll")
+    @GetMapping
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
     public ResponseEntity<List<RoleResponse>> getAllRoles() {
+
         return ResponseEntity.ok(roleService.getAllRoles());
     }
 
-    @GetMapping("/getOne/{roleId}")
+    @GetMapping("/{roleId}")
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
     public ResponseEntity<RoleResponse> getRoleById(
             @PathVariable UUID roleId) {
 
         return ResponseEntity.ok(roleService.getRoleById(roleId));
     }
 
-    @PutMapping("/update/{roleId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{roleId}")
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
     public ResponseEntity<RoleResponse> updateRole(
             @PathVariable UUID roleId,
             @Valid @RequestBody RoleRequest request) {
@@ -51,12 +58,90 @@ public class RoleController {
         return ResponseEntity.ok(roleService.updateRole(roleId, request));
     }
 
-    @DeleteMapping("/delete/{roleId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteRole(
+    @DeleteMapping("/{roleId}")
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    public ResponseEntity<BasicResponse> deleteRole(
             @PathVariable UUID roleId) {
 
         roleService.deleteRole(roleId);
-        return ResponseEntity.noContent().build();
+
+        return ResponseEntity.ok(
+                BasicResponse.builder()
+                        .success(true)
+                        .message("Role deleted successfully.")
+                        .build()
+        );
     }
+
+    @GetMapping("/exists/{roleName}")
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    public ResponseEntity<Boolean> existsByRoleName(
+            @PathVariable String roleName) {
+
+        return ResponseEntity.ok(roleService.existsByRoleName(roleName));
+    }
+
+    @PostMapping("/{roleId}/users/{userId}")
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    public ResponseEntity<BasicResponse> assignRole(
+            @PathVariable UUID roleId,
+            @PathVariable String userId) {
+
+        roleService.assignRole(roleId, userId);
+
+        return ResponseEntity.ok(
+                BasicResponse.builder()
+                        .success(true)
+                        .message("Role assigned successfully.")
+                        .build()
+        );
+    }
+
+    @DeleteMapping("/{roleId}/users/{userId}")
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    public ResponseEntity<BasicResponse> removeRole(
+            @PathVariable UUID roleId,
+            @PathVariable String userId) {
+
+        roleService.removeRole(roleId, userId);
+
+        return ResponseEntity.ok(
+                BasicResponse.builder()
+                        .success(true)
+                        .message("Role removed successfully.")
+                        .build()
+        );
+    }
+
+    @GetMapping("/{roleId}/users")
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    public ResponseEntity<List<UserDataResponse>> getUsersByRole(
+            @PathVariable UUID roleId) {
+
+        return ResponseEntity.ok(roleService.getUsersByRole(roleId));
+    }
+
+    @GetMapping("/users/{userId}")
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    public ResponseEntity<List<RoleResponse>> getRolesByUser(
+            @PathVariable String userId) {
+
+        return ResponseEntity.ok(roleService.getRolesByUser(userId));
+    }
+
+    @DeleteMapping("/users/{userId}")
+    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    public ResponseEntity<BasicResponse> removeAllRolesFromUser(
+            @PathVariable String userId) {
+
+        roleService.removeAllRolesFromUser(userId);
+
+        return ResponseEntity.ok(
+                BasicResponse.builder()
+                        .success(true)
+                        .message("All roles removed successfully.")
+                        .build()
+        );
+    }
+
 }
