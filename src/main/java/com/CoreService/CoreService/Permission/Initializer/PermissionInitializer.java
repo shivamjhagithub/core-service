@@ -25,7 +25,9 @@ public class PermissionInitializer
                 Map.entry("UPDATE_USER", "Update users"),
                 Map.entry("DELETE_USER", "Delete users"),
                 Map.entry("VIEW_USER", "View users"),
-
+                Map.entry("VIEW_ALL_USER", "view all users"),
+                Map.entry("VIEW_ALL_COLLEGE_USER", "view all users of a college"),
+                Map.entry("DELETE_ALL_COLLEGE_USER", "delete all users of a college"),
                 // Role
                 Map.entry("CREATE_ROLE", "Create roles"),
                 Map.entry("UPDATE_ROLE", "Update roles"),
