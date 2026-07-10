@@ -1,0 +1,18 @@
+package com.CoreService.CoreService.Permission.Entities;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Builder
+@Getter
+@Setter
+public class PermissionEntity {
+    @NonNull
+    private String permissionName;
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private String permissionId;
+    private String permissionCode;
+    private String permissionDescription;
+}
