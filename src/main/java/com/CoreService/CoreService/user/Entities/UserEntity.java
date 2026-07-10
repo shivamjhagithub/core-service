@@ -27,5 +27,4 @@ public class UserEntity {
     private String email;
     private String password;
     private Boolean activate;
-
 }

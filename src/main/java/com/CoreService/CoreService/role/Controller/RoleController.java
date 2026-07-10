@@ -26,7 +26,7 @@ public class RoleController {
     private final RoleService roleService;
 
     @PostMapping
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('CREATE_ROLE')")
     public ResponseEntity<RoleResponse> createRole(
             @Valid @RequestBody RoleRequest request) {
 
@@ -35,14 +35,14 @@ public class RoleController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_ROLE')")
     public ResponseEntity<List<RoleResponse>> getAllRoles() {
 
         return ResponseEntity.ok(roleService.getAllRoles());
     }
 
     @GetMapping("/{roleId}")
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_ROLE')")
     public ResponseEntity<RoleResponse> getRoleById(
             @PathVariable UUID roleId) {
 
@@ -50,7 +50,7 @@ public class RoleController {
     }
 
     @PutMapping("/{roleId}")
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('UPDATE_ROLE')")
     public ResponseEntity<RoleResponse> updateRole(
             @PathVariable UUID roleId,
             @Valid @RequestBody RoleRequest request) {
@@ -59,7 +59,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{roleId}")
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('DELETE_ROLE')")
     public ResponseEntity<BasicResponse> deleteRole(
             @PathVariable UUID roleId) {
 
@@ -74,7 +74,7 @@ public class RoleController {
     }
 
     @GetMapping("/exists/{roleName}")
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_ROLE')")
     public ResponseEntity<Boolean> existsByRoleName(
             @PathVariable String roleName) {
 
@@ -82,7 +82,7 @@ public class RoleController {
     }
 
     @PostMapping("/{roleId}/users/{userId}")
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('ASSIGN_ROLE')")
     public ResponseEntity<BasicResponse> assignRole(
             @PathVariable UUID roleId,
             @PathVariable String userId) {
@@ -98,7 +98,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{roleId}/users/{userId}")
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('REMOVE_ROLE')")
     public ResponseEntity<BasicResponse> removeRole(
             @PathVariable UUID roleId,
             @PathVariable String userId) {
@@ -114,7 +114,7 @@ public class RoleController {
     }
 
     @GetMapping("/{roleId}/users")
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_ROLE')")
     public ResponseEntity<List<UserDataResponse>> getUsersByRole(
             @PathVariable UUID roleId) {
 
@@ -122,7 +122,7 @@ public class RoleController {
     }
 
     @GetMapping("/users/{userId}")
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('VIEW_ROLE')")
     public ResponseEntity<List<RoleResponse>> getRolesByUser(
             @PathVariable String userId) {
 
@@ -130,7 +130,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/users/{userId}")
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('REMOVE_ROLE')")
     public ResponseEntity<BasicResponse> removeAllRolesFromUser(
             @PathVariable String userId) {
 

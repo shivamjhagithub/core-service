@@ -4,6 +4,8 @@ import lombok.*;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Builder
 @Setter
 @Getter
@@ -12,5 +14,5 @@ import org.springframework.stereotype.Component;
 @Component
 public class UserContext {
     String userId;
-    String collegeId;
+    UUID collegeId;
 }
