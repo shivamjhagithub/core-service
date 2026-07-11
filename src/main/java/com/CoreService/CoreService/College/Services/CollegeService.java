@@ -4,6 +4,12 @@ import com.CoreService.CoreService.College.Dto.CollegeDto;
 import com.CoreService.CoreService.College.Entities.CollegeEntity;
 import com.CoreService.CoreService.College.Repository.CollegeRepository;
 import com.CoreService.CoreService.College.Request.CollegeDataRequest;
+import com.CoreService.CoreService.Permission.Services.RolePermissionService;
+import com.CoreService.CoreService.module.Services.ModuleService;
+import com.CoreService.CoreService.role.Services.RoleService;
+import com.CoreService.CoreService.user.Services.UserService;
+import com.CoreService.CoreService.user.Services.UserServiceImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -14,10 +20,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class CollegeService {
-    @Autowired
-    private CollegeRepository collegeRepository;
 
+    private final CollegeRepository collegeRepository;
+    private final UserServiceImpl userService;
+    private final ModuleService moduleService;
+    private final RoleService roleService;
+    private final RolePermissionService rolePermissionService;
     public Boolean createCollege(CollegeDataRequest collegeDataRequest) {
         try{
             if(collegeDataRequest == null) {
@@ -139,9 +149,13 @@ public class CollegeService {
             }
             collegeRepository.deleteById(collegeId);
             // delete all users of college
+            userService.deleteAllUsersOfCollegeByCollegeId(collegeId);
             //delete all roles of college
+            roleService.deleteAllRolesOfCollege(collegeId);
             // delete all permissions of college
+            rolePermissionService.deleteAllRolesPermissionOfCollege(collegeId);
             //delete all modules of college
+            moduleService.deleteCollegeModule(collegeId);
             return true;
         }
         catch (Exception e){
