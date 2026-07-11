@@ -2,6 +2,8 @@ package com.CoreService.CoreService.user.Services;
 
 import com.CoreService.CoreService.common.context.CollegeContext;
 import com.CoreService.CoreService.common.context.UserContext;
+import com.CoreService.CoreService.role.Services.RoleService;
+import com.CoreService.CoreService.role.Services.RoleServiceImpl;
 import com.CoreService.CoreService.user.Entities.UserEntity;
 import com.CoreService.CoreService.user.Repository.UserRepo;
 import com.CoreService.CoreService.user.Requests.PasswordChangeRequest;
@@ -22,6 +24,7 @@ public  class UserServiceImpl implements UserService {
     private  final UserRepo userRepo;
     private final CollegeContext collegeContext;
     private final PasswordEncoder passwordEncoder;
+    private final RoleServiceImpl roleService;
 
     @Override
     public UserResponse createUser(UserRequsets requsets) {
@@ -123,6 +126,7 @@ public  class UserServiceImpl implements UserService {
         }
         if(userRepo.existsByCollegeIdAndUserId(collegeContext.getCollegeId(), userId)){
             userRepo.deleteById(userId);
+            roleService.deleteAllRolesOfUser(userId);
             return true;
         }
         else
@@ -166,6 +170,10 @@ public  class UserServiceImpl implements UserService {
     }
     public boolean deleteAllUsersOfCollege() {
         userRepo.deleteAllByCollegeId(collegeContext.getCollegeId());
+        return true;
+    }
+    public boolean deleteAllUsersOfCollegeByCollegeId(UUID collegeId) {
+        userRepo.deleteAllByCollegeId(collegeId);
         return true;
     }
     public UserResponse updateUser(UpdateRequest updateRequest) {

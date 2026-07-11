@@ -161,7 +161,9 @@ public class RoleServiceImpl implements RoleService {
 
         userRoleRepository.save(userRole);
     }
-
+    public void deleteAllRolesOfUser(String userId) {
+        userRoleRepository.deleteAllByUser_userId(userId);
+    }
     @Override
     public void removeRole(UUID roleId, String userId) {
 

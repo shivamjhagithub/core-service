@@ -115,4 +115,8 @@ public class RolePermissionService {
 
         rolePermissionRepository.saveAll(rolePermissions);
     }
+    public boolean deleteAllRolesPermissionOfCollege(UUID collegeId) {
+        rolePermissionRepository.deleteAllByRole_College_collegeId(collegeId);
+        return true;
+    }
 }
