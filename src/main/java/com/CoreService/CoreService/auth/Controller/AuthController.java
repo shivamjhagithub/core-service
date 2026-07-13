@@ -54,4 +54,7 @@ public class AuthController {
       return ResponseEntity.ok(" otp verified");
    }
 
+
+
+
 }

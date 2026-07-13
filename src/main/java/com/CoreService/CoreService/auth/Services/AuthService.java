@@ -2,7 +2,10 @@ package com.CoreService.CoreService.auth.Services;
 
 import com.CoreService.CoreService.auth.Requests.LoginRequests;
 import com.CoreService.CoreService.auth.Response.LoginResponse;
+import com.CoreService.CoreService.common.DTO.JwtDto;
 import com.CoreService.CoreService.common.JWT.JwtService;
+import com.CoreService.CoreService.user.Entities.UserEntity;
+import com.CoreService.CoreService.user.Repository.UserRepo;
 import lombok.RequiredArgsConstructor;
 import org.apache.catalina.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,11 +21,13 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     @Autowired
     private final JwtService jwtService;
+    @Autowired
+    private final UserRepo userRepository;
 
     public LoginResponse login(LoginRequests request) {
 
         // Find user
-        User user = userRepository.findByUserId(request.getUserId())
+        UserEntity user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("Invalid User ID or Password"));
 
         // Check password
@@ -31,6 +36,7 @@ public class AuthService {
         }
 
         // Generate JWT
+        JwtDto jwtDto=JwtDto.builder().userId(user.getUserId()).collegeId()
         String jwtToken = jwtService.generateJwtToken();
 
 

@@ -1,52 +1,35 @@
 package com.CoreService.CoreService.common.Config;
 
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import org.springframework.data.redis.connection
-        .RedisConnectionFactory;
-
-import org.springframework.data.redis.core
-        .RedisTemplate;
-
-import org.springframework.data.redis.serializer
-        .GenericJackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer
-        .StringRedisSerializer;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
 public class RedisConfig {
 
     @Bean
-    public RedisTemplate<String, Object>
-    redisTemplate(
-            RedisConnectionFactory factory
-    ) {
+    public RedisTemplate<String, Object> redisTemplate(
+            RedisConnectionFactory connectionFactory) {
 
-        RedisTemplate<String, Object>
-                template =
-                new RedisTemplate<>();
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
 
-        template.setConnectionFactory(factory);
+        ObjectMapper objectMapper = new ObjectMapper();
 
-        template.setKeySerializer(
-                new StringRedisSerializer()
-        );
+        StringRedisSerializer keySerializer = new StringRedisSerializer();
+        GenericJacksonJsonRedisSerializer valueSerializer =
+                new GenericJacksonJsonRedisSerializer(objectMapper);
 
-        template.setValueSerializer(
-                new GenericJackson2JsonRedisSerializer()
-        );
-
-        template.setHashKeySerializer(
-                new StringRedisSerializer()
-        );
-
-        template.setHashValueSerializer(
-                new GenericJackson2JsonRedisSerializer()
-        );
+        template.setKeySerializer(keySerializer);
+        template.setValueSerializer(valueSerializer);
+        template.setHashKeySerializer(keySerializer);
+        template.setHashValueSerializer(valueSerializer);
 
         template.afterPropertiesSet();
-
         return template;
     }
 }
