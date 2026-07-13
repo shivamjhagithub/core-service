@@ -76,10 +76,11 @@ public class JwtFilter extends OncePerRequestFilter {
             List<String> modules = claims.get("modules", List.class);
 
             // Store college id in ThreadLocal
-            if(collegeId!=collegeContext.getCollegeId()){
+            if(!collegeId.equals(collegeContext.getCollegeId())){
                 throw  new RuntimeException("User not found in this college");
             }
-            userContext.builder().userId(username).collegeId(collegeId.toString()).build();
+            UserContext.setUserId(username);
+            userContext.setCollegeId(collegeId);
             // Create authorities
             List<GrantedAuthority> authorities = new ArrayList<>();
 

@@ -10,16 +10,19 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface UserRepo extends JpaRepository<UserEntity,Integer> {
-    UserEntity save(UserEntity userEntity);
-
-    Optional<UserEntity> findById(String id);
-
-    List<UserEntity> findAll();
-
-    void deleteById(String id);
-
-    List<UserEntity> findByCollegeId(UUID collegeId);
-
-    boolean existsById(@NotBlank String userid);
+public interface UserRepo extends JpaRepository<UserEntity,String> {
+    Optional<UserEntity> findByUserIdAndCollegeId(String id,UUID collegeId);
+    List<UserEntity> findAllByCollegeId(UUID collegeId);
+    void deleteAllByCollegeId(UUID collegeId);
+    void deleteByCollegeId(UUID collegeId);
+    boolean existsByUserId(@NotBlank String userid);
+    boolean existsByCollegeIdAndUserId(UUID collegeId, String userId);
+    List<UserEntity> findByCollegeIdAndUserIdContainingIgnoreCaseOrCollegeIdAndUserNameContainingIgnoreCaseOrCollegeIdAndEmailContainingIgnoreCase(
+            UUID collegeId1,
+            String userId,
+            UUID collegeId2,
+            String userName,
+            UUID collegeId3,
+            String email
+    );
 }

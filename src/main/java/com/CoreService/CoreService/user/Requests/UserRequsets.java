@@ -13,10 +13,9 @@ public class UserRequsets {
     @NotBlank
     private String userid;
 
-    @NotBlank
     private String password;
 
     @Email
-    @NotBlank
     private String email;
+    private String UserName;
 }

@@ -1,8 +1,10 @@
 package com.CoreService.CoreService.role.Entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import com.CoreService.CoreService.user.Entities.UserEntity;
+import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -12,6 +14,10 @@ import lombok.*;
 @Builder
 public class UserRole {
     @Id
-    private String userId;
-    private String roleId;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private String id;
+    @ManyToOne
+    private UserEntity user;
+    @ManyToOne
+    private Role role;
 }

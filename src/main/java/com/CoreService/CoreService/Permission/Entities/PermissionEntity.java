@@ -10,8 +10,9 @@ import lombok.*;
 public class PermissionEntity {
     @NonNull
     private String permissionName;
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private String permissionId;
-    private String premissionDescription;
+    private String permissionCode;
+    private String permissionDescription;
 }

@@ -146,7 +146,7 @@ public class ModuleService {
 
     public boolean deleteCollegeModule(UUID collegeId) {
         try {
-            collegeModuleRepository.deleteByCollege_CollegeId(collegeId);
+            collegeModuleRepository.deleteAllByCollege_CollegeId(collegeId);
             return true;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
