@@ -20,7 +20,6 @@ public class AuthController {
    private UserContext userContext;
    @Autowired
    private  RefreshTokenService refreshTokenService;
-
    @PostMapping("/login")
    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequests loginRequest) {
       try{
@@ -44,8 +43,8 @@ public class AuthController {
       return ResponseEntity.ok("logout successful");
    }
    @PostMapping("/refreshToken")
-   public ResponseEntity<LoginResponse> updateRefreshTokenAndJwt(@RequestBody LoginRequests loginRequest) {
-      LoginResponse ans = authService.updateRefreshTokenAndJwt(loginRequest);
+   public ResponseEntity<LoginResponse> updateRefreshTokenAndJwt(@RequestBody String refreshToken){
+      LoginResponse ans = authService.updateRefreshTokenAndJwt(refreshToken);
       return new ResponseEntity<>(ans, HttpStatus.OK);
    }
    @PostMapping("/forgotPasswordAndSendOtp")
