@@ -17,6 +17,7 @@ public class RefreshTokenService {
     public RefreshToken generateRefreshToken(String userId) {
         RefreshToken refreshToken = RefreshToken.builder().userId(userId).expiresAt(Instant.now().plus(30, ChronoUnit.DAYS)
 ).build();
+        refreshTokenRepo.save(refreshToken);
         return refreshToken;
     }
     public boolean checkExpiration(RefreshToken refreshToken) {

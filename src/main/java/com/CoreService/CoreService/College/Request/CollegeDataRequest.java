@@ -26,4 +26,5 @@ public class CollegeDataRequest {
     private String universityName;
     private String universityCode;
     private String collegeDescription;
+    private String adminEmail;
 }

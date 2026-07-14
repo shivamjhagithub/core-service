@@ -21,8 +21,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/rolePermission")
 public class RolePermissionController {
-    private RolePermissionService rolePermissionService;
-    @PreAuthorize("hasAuthority('ASSIGN_PERMISSION')")
+    private final RolePermissionService rolePermissionService;
+    @PreAuthorize("hasAuthority('ASSIGN_PERMISSION') or hasRole('COLLEGE_ADMIN')")
     @PostMapping("/{roleId}/permission/{permissionId}")
     public ResponseEntity<BasicResponse> addPermissionToRole(@PathVariable UUID roleId,@PathVariable String permissionId) {
         boolean result = rolePermissionService.addPermissionToRole(roleId,permissionId);
@@ -59,7 +59,7 @@ public class RolePermissionController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(BasicResponse.builder().message("Permission Not Found").build());
     }
     @PutMapping("/{roleId}/permissions")
-    @PreAuthorize("hasAuthority('ASSIGN_PERMISSION')")
+    @PreAuthorize("hasAuthority('ASSIGN_PERMISSION') or hasRole(''COLLEGE_ADMIN)")
     public ResponseEntity<BasicResponse> updateRolePermissions(
             @PathVariable UUID roleId,
             @RequestBody UpdateRolePermissionRequest request) {
