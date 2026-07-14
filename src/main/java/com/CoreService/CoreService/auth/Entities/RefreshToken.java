@@ -21,5 +21,4 @@ public class RefreshToken {
     private String id;
     private Instant expiresAt;
     private String userId;
-
 }
