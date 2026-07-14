@@ -22,7 +22,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/login","/api/v1/auth/refresh").permitAll()
+                        .requestMatchers("/api/v1/auth/login","/api/v1/auth/refresh","/api/v1/college/createCollege").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(collegeFilter, UsernamePasswordAuthenticationFilter.class)

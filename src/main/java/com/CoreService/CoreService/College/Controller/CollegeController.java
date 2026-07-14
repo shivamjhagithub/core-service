@@ -22,7 +22,7 @@ public class CollegeController {
     @Autowired
     private CollegeService collegeService;
 
-    @PreAuthorize("hasRole('MAIN_ADMIN')")
+
     @PostMapping("/createCollege")
     public ResponseEntity<BasicResponse> createCollege(@RequestBody CollegeDataRequest collegeDataRequest) {
         Boolean isCreated=collegeService.createCollege(collegeDataRequest);
@@ -50,7 +50,7 @@ public class CollegeController {
         }
         return ResponseEntity.ok(CollegeDataResponse.builder().college(collegeDto).success(true).message("Found College Data").build());
     }
-    @PreAuthorize("hasRole('COLLEGE_ADMIN')")
+    @PreAuthorize("hasAuthority('UPDATE_SETTINGS')")
     @PutMapping("/")
     public ResponseEntity<CollegeDataResponse> updateCollegeData(@RequestBody CollegeDataRequest collegeDataRequest) {
         if(CollegeContext.getCollegeId()==null){

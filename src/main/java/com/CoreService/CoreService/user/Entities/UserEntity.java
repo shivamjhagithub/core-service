@@ -18,14 +18,18 @@ public class UserEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String userId;
+    @NonNull
+    private String userName;
     private String fatherName;
+    @NonNull
     private UUID collegeId;
     private String image;
     private Long phoneNumber;
     private Long alternatePhoneNumber;
     private String bloodGroup;
+    @NonNull
     private String email;
+    @NonNull
     private String password;
     private Boolean activate;
-
 }

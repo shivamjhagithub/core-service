@@ -17,6 +17,6 @@ public interface CollegeModuleRepository extends JpaRepository<CollegeModuleEnti
     Boolean existsByCollege_collegeIdAndModule_moduleCodeAndEnabledTrue(UUID collegeId, String moduleCode);
     Boolean existsByCollege_collegeIdAndModule_moduleCode(UUID collegeId, String moduleCode);
     Page<CollegeModuleEntity> findByModule_moduleCodeAndEnabledTrue(String moduleCode, Pageable pageable);
-    void deleteByCollege_CollegeId(UUID collegeId);
+    void deleteAllByCollege_CollegeId(UUID collegeId);
     void deleteByCollege_collegeIdAndModule_moduleCode(UUID collegeId, String moduleCode);
 }
