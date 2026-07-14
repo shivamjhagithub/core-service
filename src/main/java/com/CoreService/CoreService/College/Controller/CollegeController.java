@@ -22,7 +22,7 @@ public class CollegeController {
     @Autowired
     private CollegeService collegeService;
 
-    @PreAuthorize("hasRole('MAIN_ADMIN')")
+
     @PostMapping("/createCollege")
     public ResponseEntity<BasicResponse> createCollege(@RequestBody CollegeDataRequest collegeDataRequest) {
         Boolean isCreated=collegeService.createCollege(collegeDataRequest);

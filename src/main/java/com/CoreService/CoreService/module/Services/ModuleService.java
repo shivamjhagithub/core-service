@@ -28,7 +28,6 @@ public class ModuleService {
     private final ModuleRepository moduleRepository;
     private final CollegeModuleRepository collegeModuleRepository;
     private final CollegeRepository collegeRepository;
-    private final CollegeService collegeService;
 
     public boolean createModule(ModuleDataRequest module) {
         try {
@@ -133,17 +132,29 @@ public class ModuleService {
     }
 
     public Page<CollegeDto> getAllCollegeIfModulePresent(String moduleCode, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<CollegeModuleEntity> collegeModules = collegeModuleRepository.findByModule_moduleCodeAndEnabledTrue(moduleCode, pageable);
-        if (collegeModules == null) {
-            return null;
-        }
-        return collegeModules.map(
-                collegeModule ->
-                        collegeService.mapToDto(collegeModule.getCollege())
-        );
-    }
 
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<CollegeModuleEntity> collegeModules =
+                collegeModuleRepository.findByModule_moduleCodeAndEnabledTrue(moduleCode, pageable);
+
+        return collegeModules.map(collegeModule -> mapToDto(collegeModule.getCollege()));
+    }
+    private CollegeDto mapToDto(CollegeEntity collegeEntity) {
+
+        return CollegeDto.builder()
+                .collegeId(collegeEntity.getCollegeId())
+                .collegeName(collegeEntity.getCollegeName())
+                .collegeCode(collegeEntity.getCollegeCode())
+                .collegeDescription(collegeEntity.getCollegeDescription())
+                .collegeEmail(collegeEntity.getCollegeEmail())
+                .collegePhone(collegeEntity.getCollegePhone())
+                .collegeAddress(collegeEntity.getCollegeAddress())
+                .collegeState(collegeEntity.getCollegeState())
+                .collegeZip(collegeEntity.getCollegeZip())
+                .universityName(collegeEntity.getUniversityName())
+                .build();
+    }
     public boolean deleteCollegeModule(UUID collegeId) {
         try {
             collegeModuleRepository.deleteAllByCollege_CollegeId(collegeId);

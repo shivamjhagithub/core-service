@@ -25,4 +25,5 @@ public interface UserRepo extends JpaRepository<UserEntity,String> {
             UUID collegeId3,
             String email
     );
+    boolean existsByEmail(String email);
 }

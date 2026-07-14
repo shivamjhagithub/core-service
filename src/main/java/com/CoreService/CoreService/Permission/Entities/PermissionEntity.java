@@ -7,6 +7,8 @@ import lombok.*;
 @Builder
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class PermissionEntity {
     @NonNull
     private String permissionName;

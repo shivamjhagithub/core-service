@@ -6,10 +6,12 @@ import lombok.experimental.SuperBuilder;
 
 import java.util.UUID;
 
-@Data
+
 @SuperBuilder
-@Builder
+@Getter
+@Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class RoleResponse  extends BasicResponse {
     private UUID roleId;
     private String roleName;

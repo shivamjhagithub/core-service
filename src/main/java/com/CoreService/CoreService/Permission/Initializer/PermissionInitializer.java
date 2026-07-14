@@ -5,6 +5,7 @@ import com.CoreService.CoreService.Permission.Repository.PermissionRepository;
 import com.CoreService.CoreService.module.Entities.ModuleEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@Order(1)
 public class PermissionInitializer
         implements CommandLineRunner {
 

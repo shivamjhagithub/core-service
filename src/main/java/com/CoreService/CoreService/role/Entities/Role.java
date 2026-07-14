@@ -1,6 +1,7 @@
 package com.CoreService.CoreService.role.Entities;
 
 import com.CoreService.CoreService.College.Entities.CollegeEntity;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -22,5 +23,6 @@ public class Role {
     private String roleName;
     private String roleDescription;
     @ManyToOne(fetch = FetchType.LAZY)
+    @Nullable
     private CollegeEntity college;
 }

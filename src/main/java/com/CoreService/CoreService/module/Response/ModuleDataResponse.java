@@ -4,8 +4,9 @@ import com.CoreService.CoreService.common.Response.BasicResponse;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
-@Builder
+@SuperBuilder
 @Getter
 @Setter
 public class ModuleDataResponse extends BasicResponse {
