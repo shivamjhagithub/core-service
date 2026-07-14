@@ -1,5 +1,6 @@
 package com.CoreService.CoreService.user.Services;
 
+import com.CoreService.CoreService.College.Repository.CollegeRepository;
 import com.CoreService.CoreService.common.context.CollegeContext;
 import com.CoreService.CoreService.common.context.UserContext;
 import com.CoreService.CoreService.role.Services.RoleService;
@@ -25,6 +26,7 @@ public  class UserServiceImpl implements UserService {
     private final CollegeContext collegeContext;
     private final PasswordEncoder passwordEncoder;
     private final RoleServiceImpl roleService;
+    private final CollegeRepository collegeRepository;
 
     @Override
     public UserResponse createUser(UserRequsets requsets) {

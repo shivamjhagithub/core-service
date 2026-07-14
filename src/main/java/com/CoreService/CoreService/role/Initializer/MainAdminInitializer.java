@@ -38,8 +38,8 @@ public class MainAdminInitializer implements CommandLineRunner {
 
         // Create Super Admin user
         UserEntity admin = UserEntity.builder()
-                .userName("Super Admin")
-                .email("admin@cms.com")
+                .userName("Main Admin")
+                .email("vatsanmol4@gmail.com")
                 .password(passwordEncoder.encode("Admin@123"))
                 .activate(true)
                 .build();

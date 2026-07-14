@@ -3,6 +3,7 @@ package com.CoreService.CoreService.auth.Controller;
 import com.CoreService.CoreService.auth.Requests.LoginRequests;
 import com.CoreService.CoreService.auth.Response.LoginResponse;
 import com.CoreService.CoreService.auth.Services.AuthService;
+import com.CoreService.CoreService.auth.Services.RefreshTokenService;
 import com.CoreService.CoreService.common.context.UserContext;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +18,8 @@ public class AuthController {
    private AuthService authService;
    @Autowired
    private UserContext userContext;
-
+   @Autowired
+   private  RefreshTokenService refreshTokenService;
    @PostMapping("/login")
    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequests loginRequest) {
       try{
@@ -53,8 +55,4 @@ public class AuthController {
    public ResponseEntity<?> verifyOtp(@RequestBody String otp){
       return ResponseEntity.ok(" otp verified");
    }
-
-
-
-
 }
