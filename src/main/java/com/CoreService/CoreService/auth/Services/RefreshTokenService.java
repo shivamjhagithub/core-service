@@ -11,7 +11,6 @@ import java.time.temporal.ChronoUnit;
 @Service
 @RequiredArgsConstructor
 public class RefreshTokenService {
-    private final RefreshToken refreshToken;
     private final RefreshTokenRepo refreshTokenRepo;
 
     public RefreshToken generateRefreshToken(String userId) {
