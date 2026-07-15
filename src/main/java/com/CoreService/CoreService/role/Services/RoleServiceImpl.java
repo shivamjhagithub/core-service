@@ -192,7 +192,7 @@ public class RoleServiceImpl implements RoleService {
                         .userEmail(userRole.getUser().getEmail())
                         .image(userRole.getUser().getImage())
                         .build())
-                .toList();
+                .collect(Collectors.toUnmodifiableList());
     }
 
     @Override

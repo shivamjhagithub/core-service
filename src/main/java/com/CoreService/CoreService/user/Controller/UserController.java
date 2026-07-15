@@ -149,4 +149,5 @@ public class UserController {
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(BasicResponse.builder().message("User not found").success(false).build());
     }
+
 }

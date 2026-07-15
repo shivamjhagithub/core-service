@@ -1,6 +1,7 @@
 package com.CoreService.CoreService.user.Responses;
 
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.util.UUID;
 
@@ -8,7 +9,7 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class UserResponse {
     private String userId;
 

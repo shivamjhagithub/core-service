@@ -19,4 +19,7 @@ public interface RoleRepository extends CrudRepository<Role, UUID> {
     boolean existsByRoleNameAndCollege_collegeId(String roleName, UUID collegeId);
 
     Optional<Role> findByRoleIdAndCollege_collegeId(UUID roleId, UUID collegeId);
+    boolean existsByRoleNameAndCollegeIsNull(String roleName);
+
+    Optional<Role> findByRoleNameAndCollegeIsNull(String roleName);
 }

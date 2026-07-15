@@ -6,7 +6,13 @@ import com.CoreService.CoreService.College.Repository.CollegeRepository;
 import com.CoreService.CoreService.College.Request.CollegeDataRequest;
 import com.CoreService.CoreService.Permission.Services.RolePermissionService;
 import com.CoreService.CoreService.module.Services.ModuleService;
+import com.CoreService.CoreService.role.Entities.Role;
+import com.CoreService.CoreService.role.Entities.UserRole;
+import com.CoreService.CoreService.role.Repository.RoleRepository;
+import com.CoreService.CoreService.role.Repository.UserRoleRepository;
 import com.CoreService.CoreService.role.Services.RoleService;
+import com.CoreService.CoreService.user.Entities.UserEntity;
+import com.CoreService.CoreService.user.Repository.UserRepo;
 import com.CoreService.CoreService.user.Services.UserService;
 import com.CoreService.CoreService.user.Services.UserServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -14,9 +20,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 
 @Service
@@ -28,6 +36,10 @@ public class CollegeService {
     private final ModuleService moduleService;
     private final RoleService roleService;
     private final RolePermissionService rolePermissionService;
+    private final UserRepo userRepo;
+    private final UserRoleRepository userRoleRepo;
+    private final RoleRepository roleRepo;
+    private PasswordEncoder passwordEncoder;
     public Boolean createCollege(CollegeDataRequest collegeDataRequest) {
         try{
             if(collegeDataRequest == null) {
@@ -49,6 +61,15 @@ public class CollegeService {
                     .universityName(collegeDataRequest.getUniversityName())
                     .build();
             CollegeEntity collegeEntity1= collegeRepository.save(collegeEntity);
+            UserEntity collegeAdmin= UserEntity.builder().userName(collegeEntity1.getCollegeName()+"ADMIN").userId(collegeEntity1.getCollegeName()+"00001").email(collegeDataRequest.getAdminEmail()).password(passwordEncoder.encode("CollegeAdminPassword"+collegeEntity1.getCollegeName())).build();
+            Role role = Role.builder().college(collegeEntity1).roleName("COLLEGE_ADMIN").roleDescription("this is a college admin for college"+collegeEntity1.getCollegeName()).build();
+            UserRole userRole=UserRole.builder().user(collegeAdmin).role(role).build();
+            userRepo.save(collegeAdmin);
+            roleRepo.save(role);
+            userRoleRepo.save(userRole);
+
+            //send mail to admin
+
             if(collegeEntity1 != null) {
                 return true;
             }

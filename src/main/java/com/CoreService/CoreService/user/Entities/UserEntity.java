@@ -1,9 +1,7 @@
 package com.CoreService.CoreService.user.Entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.annotation.Nullable;
+import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.UUID;
@@ -16,12 +14,12 @@ import java.util.UUID;
 @Entity
 public class UserEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(unique = true, nullable = false)
     private String userId;
     @NonNull
     private String userName;
     private String fatherName;
-    @NonNull
+    @Nullable
     private UUID collegeId;
     private String image;
     private Long phoneNumber;
