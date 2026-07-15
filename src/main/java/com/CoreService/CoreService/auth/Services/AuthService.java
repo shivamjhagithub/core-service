@@ -6,27 +6,27 @@ import com.CoreService.CoreService.Permission.Repository.RolePermissionRepositor
 import com.CoreService.CoreService.auth.Entities.RefreshToken;
 import com.CoreService.CoreService.auth.Repositories.RefreshTokenRepo;
 import com.CoreService.CoreService.auth.Requests.LoginRequests;
+import com.CoreService.CoreService.auth.Requests.ResetPasswordRequest;
 import com.CoreService.CoreService.auth.Response.LoginResponse;
 import com.CoreService.CoreService.common.DTO.JwtDto;
 import com.CoreService.CoreService.common.JWT.JwtService;
-import com.CoreService.CoreService.module.Entities.CollegeModuleEntity;
+import com.CoreService.CoreService.common.Redis.RedisService;
 import com.CoreService.CoreService.module.Repository.CollegeModuleRepository;
 import com.CoreService.CoreService.module.Repository.ModuleRepository;
-import com.CoreService.CoreService.role.Entities.Role;
 import com.CoreService.CoreService.role.Entities.UserRole;
 import com.CoreService.CoreService.role.Repository.UserRoleRepository;
 import com.CoreService.CoreService.user.Entities.UserEntity;
 import com.CoreService.CoreService.user.Repository.UserRepo;
 import lombok.RequiredArgsConstructor;
-import org.apache.catalina.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,29 +34,21 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuthService {
 
-    // private final UserRepository userRepository;
-    @Autowired
     private final PasswordEncoder passwordEncoder;
-    @Autowired
     private final JwtService jwtService;
-    @Autowired
     private final UserRepo userRepository;
-    @Autowired
     private final CollegeRepository collegeRepository;
-    @Autowired
     private final CollegeModuleRepository collegeModuleRepository;
-    @Autowired
     private final UserRoleRepository userRoleRepository;
-    @Autowired
     private final RolePermissionRepository rolePermissionRepository;
-    @Autowired
     private final ModuleRepository moduleRepository;
-    @Autowired
     private final PermissionRepository permissionRepository;
-    @Autowired
     private final RefreshTokenService refreshTokenService;
-    @Autowired
     private final RefreshTokenRepo  refreshTokenRepo;
+    private  final RedisService redisService;
+
+    private static final String OTP_PREFIX = "OTP:";
+    private static final Duration OTP_EXPIRY = Duration.ofMinutes(5);
     public LoginResponse login(LoginRequests request) {
         UserEntity user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("Invalid User ID or Password"));
@@ -65,11 +57,17 @@ public class AuthService {
             throw new RuntimeException("Invalid User ID or Password");
         }
         return generateLoginResponse(user);
-        // Find user
+
        }
 
-    public Boolean logout(String userId) {
-        return false;
+    public Boolean logout(String refreshToken) {
+            RefreshToken token = refreshTokenRepo.findById(refreshToken)
+                    .orElseThrow(() -> new RuntimeException("Invalid Refresh Token"));
+
+            refreshTokenRepo.delete(token);
+
+            return true;
+
     }
 
     public LoginResponse updateRefreshTokenAndJwt(String refreshToken) {
@@ -88,17 +86,61 @@ public class AuthService {
             throw new RuntimeException("Invalid Refresh Token");
         }
     }
+    public void generateOtp(String userId) {
 
-    public void generateOtp(String otp) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        String email=user.getEmail();
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+
+        redisService.save(
+                OTP_PREFIX + userId,
+                otp,
+                OTP_EXPIRY
+        );
+        // send mail
+
     }
+    public boolean checkOtp(String userId, String otp) {
 
-    public boolean checkOtp(String otp) {
-        return false;
+        Object storedOtp = redisService.get(OTP_PREFIX + userId);
+
+        if (storedOtp == null) {
+            throw new RuntimeException("OTP Expired");
+        }
+
+        if (!storedOtp.toString().equals(otp)) {
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        redisService.delete(OTP_PREFIX + userId);
+
+        redisService.save(
+                "RESET:" + userId,
+                true,
+                Duration.ofMinutes(10)
+        );
+
+        return true;
+    }
+    public void resetPassword(ResetPasswordRequest request) {
+
+        Object verified = redisService.get("RESET:" + request.getUserId());
+
+        if (verified == null) {
+            throw new RuntimeException("OTP Verification Required");
+        }
+
+        UserEntity user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+
+        userRepository.save(user);
+
+        redisService.delete("RESET:" + request.getUserId());
     }
     public LoginResponse generateLoginResponse(UserEntity user) {
-
-        // Verify password
-
 
         UUID collegeId = user.getCollegeId();
 
@@ -170,4 +212,5 @@ public class AuthService {
                 .build();
 
     }
+
 }
