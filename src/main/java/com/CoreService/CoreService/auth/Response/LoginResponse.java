@@ -11,7 +11,7 @@ public class LoginResponse {
     String refreshToken;
     String jwtToken;
     String message;
-    public LoginResponse(String messege){
-        this.message=message;
+    public LoginResponse(String message){
+        this.message = message;
     }
 }
