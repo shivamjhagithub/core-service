@@ -1,9 +1,10 @@
 package com.CoreService.CoreService.auth.Controller;
 
-import com.CoreService.CoreService.auth.Requests.LoginRequests;
+import com.CoreService.CoreService.auth.Requests.*;
 import com.CoreService.CoreService.auth.Response.LoginResponse;
 import com.CoreService.CoreService.auth.Services.AuthService;
 import com.CoreService.CoreService.auth.Services.RefreshTokenService;
+import com.CoreService.CoreService.common.Response.BasicResponse;
 import com.CoreService.CoreService.common.context.UserContext;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,24 +36,39 @@ public class AuthController {
       }
    }
    @PutMapping("/logout")
-   public ResponseEntity<?> logout() {
-      boolean active=authService.logout(userContext.getUserId());
-      if(active==false){
-         ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new LoginResponse("logout unsuccessful"));
-      }
-      return ResponseEntity.ok("logout successful");
+   public ResponseEntity<BasicResponse> logout(@RequestBody RefreshTokenRequest refreshToken) {
+      boolean isLogout= authService.logout(refreshToken.getRefreshToken());
+      return ResponseEntity.ok(BasicResponse.builder().success(true).message("logout successfully").build());
    }
    @PostMapping("/refreshToken")
-   public ResponseEntity<LoginResponse> updateRefreshTokenAndJwt(@RequestBody String refreshToken){
-      LoginResponse ans = authService.updateRefreshTokenAndJwt(refreshToken);
+   public ResponseEntity<LoginResponse> updateRefreshTokenAndJwt(@RequestBody RefreshTokenRequest refreshToken){
+      LoginResponse ans = authService.updateRefreshTokenAndJwt(refreshToken.getRefreshToken());
       return new ResponseEntity<>(ans, HttpStatus.OK);
    }
    @PostMapping("/forgotPasswordAndSendOtp")
-   public ResponseEntity<?> forgotPasswordAndSendOtp(@RequestBody String email){
-      return ResponseEntity.ok("forgot password");
+   public ResponseEntity<BasicResponse> forgotPasswordAndSendOtp(@RequestBody ForgotPasswordRequest userId){
+      authService.generateOtp(userId.getUserId());
+      return ResponseEntity.ok(BasicResponse.builder().success(true).message("OTP sent successfully").build());
    }
-   @GetMapping("/verifyOtp")
-   public ResponseEntity<?> verifyOtp(@RequestBody String otp){
-      return ResponseEntity.ok(" otp verified");
+   @PostMapping("/verifyOtp")
+   public ResponseEntity<BasicResponse> verifyOtp(@RequestBody OtpRequest otpRequest){
+      boolean isVerified= authService.checkOtp(otpRequest.getUserId(), otpRequest.getOtp());
+      if(isVerified){
+         return ResponseEntity.ok(BasicResponse.builder().success(true).message("OTP verified successfully").build());
+      }
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(BasicResponse.builder().message("Invalid Otp or userId").build());
+   }
+   @PostMapping("/resetPassword")
+   public ResponseEntity<BasicResponse> resetPassword(
+           @RequestBody ResetPasswordRequest request) {
+
+      authService.resetPassword(request);
+
+      return ResponseEntity.ok(
+              BasicResponse.builder()
+                      .success(true)
+                      .message("Password changed successfully")
+                      .build()
+      );
    }
 }

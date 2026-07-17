@@ -40,6 +40,7 @@ public class MainAdminInitializer implements CommandLineRunner {
         UserEntity admin = UserEntity.builder()
                 .userName("Main Admin")
                 .email("vatsanmol4@gmail.com")
+                .userId("MainAdmin001")
                 .password(passwordEncoder.encode("Admin@123"))
                 .activate(true)
                 .build();
