@@ -6,6 +6,7 @@ import com.CoreService.CoreService.Permission.Services.PermissionService;
 import com.CoreService.CoreService.common.Response.BasicResponse;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -14,12 +15,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Permission;
 
-@NoArgsConstructor
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/v1/permission")
 public class PermissionController {
-    private PermissionService permissionService;
+    private final PermissionService permissionService;
 
     @PreAuthorize("hasRole('MAIN_ADMIN')")
     @PostMapping("/addPermission")
@@ -37,7 +37,7 @@ public class PermissionController {
         return ResponseEntity.ok(BasicResponse.builder().success(true).message("Permission Deleted").build());
     }
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('GET_PERMISSION')")
+//    @PreAuthorize("hasAuthority('GET_PERMISSION')")
     public ResponseEntity<MultiplePermissionResponse> getAllPermissions() {
         MultiplePermissionResponse response=permissionService.getAllPermissions();
         return ResponseEntity.ok(response);

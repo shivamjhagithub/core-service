@@ -29,7 +29,6 @@ public class CollegeModuleController {
     public ResponseEntity<BasicResponse> assignModuleToCollege(
             @RequestBody CollegeModuleRequest request
     ) {
-
         boolean created = moduleService.addModuleToCollege(request);
 
         if (!created) {

@@ -4,11 +4,13 @@ import com.CoreService.CoreService.Permission.Entities.PermissionEntity;
 import com.CoreService.CoreService.Permission.Entities.RolePermissionEntity;
 import com.CoreService.CoreService.Permission.Repository.PermissionRepository;
 import com.CoreService.CoreService.Permission.Repository.RolePermissionRepository;
+import com.CoreService.CoreService.Permission.Responses.MultiplePermissionResponse;
 import com.CoreService.CoreService.Permission.Responses.PermissionReponse;
 import com.CoreService.CoreService.Permission.Responses.RoleDataResponse;
 import com.CoreService.CoreService.common.context.CollegeContext;
 import com.CoreService.CoreService.role.Entities.Role;
 import com.CoreService.CoreService.role.Repository.RoleRepository;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -33,12 +35,13 @@ public class RolePermissionService {
             if(rolePermissionRepository.existsByRole_roleIdAndPermission_permissionId(roleId, permissionId)) {
                 return false;
             }
+            System.out.println("Permission Id: " + permissionId);
+            System.out.println("Role Id: " + roleId);
+            System.out.println("collegeId: " + collegeContext.getCollegeId());
             Role role = roleRepository.findByRoleIdAndCollege_collegeId(roleId,collegeContext.getCollegeId())
                     .orElseThrow(() -> new RuntimeException("Role not found."));
-
             PermissionEntity permission = permissionRepository.findById(permissionId)
                     .orElseThrow(() -> new RuntimeException("Permission not found."));
-
             RolePermissionEntity rolePermissionEntity = RolePermissionEntity.builder()
                     .role(role)
                     .permission(permission)
@@ -118,5 +121,17 @@ public class RolePermissionService {
     public boolean deleteAllRolesPermissionOfCollege(UUID collegeId) {
         rolePermissionRepository.deleteAllByRole_College_collegeId(collegeId);
         return true;
+    }
+    @Transactional
+    public boolean addMultiplePermissions(List<String> permisssionIds,UUID roleId) {
+        UUID collegeId = collegeContext.getCollegeId();
+        Role role = roleRepository.findById(roleId).orElseThrow(()->new RuntimeException("No role found"));
+        if(!collegeId.equals(role.getCollege().getCollegeId())) {
+            throw new RuntimeException("you are not authorized to add permissions to this college role");
+        }
+        for(String permissionId : permisssionIds){
+            addPermissionToRole(roleId, permissionId);
+        }
+        return  true;
     }
 }

@@ -2,6 +2,8 @@ package com.CoreService.CoreService.common.JWT;
 
 import com.CoreService.CoreService.common.context.CollegeContext;
 import com.CoreService.CoreService.common.context.UserContext;
+import com.CoreService.CoreService.user.Entities.UserEntity;
+import com.CoreService.CoreService.user.Repository.UserRepo;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -27,16 +29,18 @@ import java.util.UUID;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
+    private final UserRepo userRepo;
     private final CollegeContext collegeContext;
+
     @Autowired
-    private  UserContext userContext;
+    private UserContext userContext;
 
     public JwtFilter(JwtService jwtService,
-                     UserDetailsService userDetailsService,CollegeContext collegeContext) {
+                     UserRepo userRepo,
+                     CollegeContext collegeContext) {
         this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
-        this.collegeContext=collegeContext;
+        this.userRepo = userRepo;
+        this.collegeContext = collegeContext;
     }
 
     @Override
@@ -56,7 +60,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
         try {
 
-            // Validate token
+            // Validate JWT
             if (!jwtService.isTokenValid(token)) {
                 filterChain.doFilter(request, response);
                 return;
@@ -67,51 +71,55 @@ public class JwtFilter extends OncePerRequestFilter {
 
             String username = claims.getSubject();
 
-            UUID collegeId = UUID.fromString(
-                    claims.get("collegeId", String.class)
-            );
-
             List<String> roles = claims.get("roles", List.class);
             List<String> permissions = claims.get("permissions", List.class);
             List<String> modules = claims.get("modules", List.class);
 
-            // Store college id in ThreadLocal
-            if(!collegeId.equals(collegeContext.getCollegeId())){
-                throw  new RuntimeException("User not found in this college");
+            // Check if Main Admin
+            boolean isMainAdmin = roles != null && roles.contains("MAIN_ADMIN".toUpperCase());
+
+            // Validate college only for non-main-admin users
+            if (!isMainAdmin) {
+
+                String collegeIdStr = claims.get("collegeId", String.class);
+
+                if (collegeIdStr == null) {
+                    throw new RuntimeException("College ID missing in token");
+                }
+
+                UUID collegeId = UUID.fromString(collegeIdStr);
+
+                if (!collegeId.equals(collegeContext.getCollegeId())) {
+                    throw new RuntimeException("User does not belong to this college");
+                }
+
+                userContext.setCollegeId(collegeId);
             }
+
             UserContext.setUserId(username);
-            userContext.setCollegeId(collegeId);
+
             // Create authorities
             List<GrantedAuthority> authorities = new ArrayList<>();
 
             if (roles != null) {
                 roles.forEach(role ->
-                        authorities.add(
-                                new SimpleGrantedAuthority("ROLE_" + role)
-                        )
-                );
+                        authorities.add(new SimpleGrantedAuthority("ROLE_" + role)));
             }
-
+            System.out.println(permissions);
             if (permissions != null) {
                 permissions.forEach(permission ->
-                        authorities.add(
-                                new SimpleGrantedAuthority(permission)
-                        )
-                );
+
+                        authorities.add(new SimpleGrantedAuthority(permission)));
             }
 
             if (modules != null) {
                 modules.forEach(module ->
-                        authorities.add(
-                                new SimpleGrantedAuthority("MODULE_" + module)
-                        )
-                );
+                        authorities.add(new SimpleGrantedAuthority("MODULE_" + module)));
             }
 
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
-
-                UserDetails user =
-                        userDetailsService.loadUserByUsername(username);
+                UserEntity user = userRepo.findById(username)
+                        .orElseThrow(() -> new RuntimeException("User not found"));
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -121,6 +129,11 @@ public class JwtFilter extends OncePerRequestFilter {
                         );
 
                 authentication.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request)
+                );
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                authentication.setDetails(
                         new WebAuthenticationDetailsSource()
                                 .buildDetails(request)
                 );
@@ -128,11 +141,14 @@ public class JwtFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext()
                         .setAuthentication(authentication);
             }
-
+            System.out.println("Authenticated: "
+                    + SecurityContextHolder.getContext().getAuthentication());
+            System.out.println("Authorities: " + authorities);
             filterChain.doFilter(request, response);
 
         } finally {
             CollegeContext.clear();
+            UserContext.clear(); // Ensure this clears all ThreadLocal values
         }
     }
 }

@@ -31,6 +31,7 @@ public class UserController {
     @PreAuthorize("hasAuthority('CREATE_USER')")
     public ResponseEntity<UserResponse> createUser(
             @Valid @RequestBody UserRequsets request) {
+        System.out.println("Inside createUser controller");
 
         UserResponse response = userService.createUser(request);
 

@@ -32,7 +32,7 @@ public class RolePermissionController {
         return ResponseEntity.badRequest().build();
     }
     @GetMapping("/role/{roleId}")
-    @PreAuthorize("hasAuthority('GET_PERMISSION')")
+//    @PreAuthorize("hasAuthority('GET_PERMISSION')")
     public ResponseEntity<MultiplePermissionResponse> getAllPermissions(@PathVariable UUID roleId) {
         List<PermissionReponse> permissionReponseList=rolePermissionService.getAllPermissionsForRole(roleId);
         return ResponseEntity.ok(MultiplePermissionResponse.builder().permssions(permissionReponseList).success(true).message("Permissions Is Returned").build());
@@ -72,5 +72,13 @@ public class RolePermissionController {
                         .message("Role permissions updated successfully.")
                         .build()
         );
+    }
+    @PostMapping("/role/{roleId}/multiple-permissions")
+    public ResponseEntity<BasicResponse> addMultiplePermissions(@RequestBody List<String> permisssionIds,@PathVariable UUID roleId){
+        boolean result = rolePermissionService.addMultiplePermissions(permisssionIds,roleId);
+        if (result) {
+            return ResponseEntity.ok(BasicResponse.builder().success(true).message("Permission Is Added To role").build());
+        }
+        return ResponseEntity.badRequest().build();
     }
 }

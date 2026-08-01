@@ -25,6 +25,7 @@ public class CollegeFilter extends OncePerRequestFilter {
 
         try {
             if (collegeHeader != null && !collegeHeader.isBlank()) {
+                System.out.println(collegeHeader);
                 UUID collegeId = UUID.fromString(collegeHeader);
                 CollegeContext.setCollegeId(collegeId);
             }

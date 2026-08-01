@@ -22,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.Random;
@@ -39,77 +40,78 @@ public class CollegeService {
     private final UserRepo userRepo;
     private final UserRoleRepository userRoleRepo;
     private final RoleRepository roleRepo;
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     public Boolean createCollege(CollegeDataRequest collegeDataRequest) {
-        try{
-            if(collegeDataRequest == null) {
-                return false;
-            }
-            CollegeEntity collegeEntity=CollegeEntity
-                    .builder()
-                    .collegeAddress(collegeDataRequest.getCollegeAddress())
-                    .collegeCity(collegeDataRequest.getCollegeCity())
-                    .collegeCode(collegeDataRequest.getCollegeCode())
-                    .collegeCountry(collegeDataRequest.getCollegeCountry())
-                    .collegeEmail(collegeDataRequest.getCollegeEmail())
-                    .collegeName(collegeDataRequest.getCollegeName())
-                    .collegeDescription(collegeDataRequest.getCollegeDescription())
-                    .collegePhone(collegeDataRequest.getCollegePhone())
-                    .collegeState(collegeDataRequest.getCollegeState())
-                    .collegeZip(collegeDataRequest.getCollegeZip())
-                    .universityCode(collegeDataRequest.getUniversityCode())
-                    .universityName(collegeDataRequest.getUniversityName())
-                    .build();
-            CollegeEntity collegeEntity1= collegeRepository.save(collegeEntity);
-            UserEntity collegeAdmin= UserEntity.builder().userName(collegeEntity1.getCollegeName()+"ADMIN").userId(collegeEntity1.getCollegeName()+"00001").email(collegeDataRequest.getAdminEmail()).password(passwordEncoder.encode("CollegeAdminPassword"+collegeEntity1.getCollegeName())).build();
-            Role role = Role.builder().college(collegeEntity1).roleName("COLLEGE_ADMIN").roleDescription("this is a college admin for college"+collegeEntity1.getCollegeName()).build();
-            UserRole userRole=UserRole.builder().user(collegeAdmin).role(role).build();
-            userRepo.save(collegeAdmin);
-            roleRepo.save(role);
-            userRoleRepo.save(userRole);
-
-            //send mail to admin
-
-            if(collegeEntity1 != null) {
-                return true;
-            }
+        if (collegeDataRequest == null) {
             return false;
+        }
 
-        }
-        catch (Exception e){
-            throw new RuntimeException(e);
-        }
+        CollegeEntity collegeEntity = CollegeEntity.builder()
+                .collegeAddress(collegeDataRequest.getCollegeAddress())
+                .collegeCity(collegeDataRequest.getCollegeCity())
+                .collegeCode(collegeDataRequest.getCollegeCode())
+                .collegeCountry(collegeDataRequest.getCollegeCountry())
+                .collegeEmail(collegeDataRequest.getCollegeEmail())
+                .collegeName(collegeDataRequest.getCollegeName())
+                .collegeDescription(collegeDataRequest.getCollegeDescription())
+                .collegePhone(collegeDataRequest.getCollegePhone())
+                .collegeState(collegeDataRequest.getCollegeState())
+                .collegeZip(collegeDataRequest.getCollegeZip())
+                .universityCode(collegeDataRequest.getUniversityCode())
+                .universityName(collegeDataRequest.getUniversityName())
+                .build();
+
+        CollegeEntity savedCollege = collegeRepository.save(collegeEntity);
+        UserEntity collegeAdmin = UserEntity.builder()
+                .userName(savedCollege.getCollegeName() + "ADMIN")
+                .userId(savedCollege.getCollegeName() + "00001")
+                .email(collegeDataRequest.getAdminEmail())
+                .password(passwordEncoder.encode("CollegeAdminPassword" + savedCollege.getCollegeName()))
+                .collegeId(savedCollege.getCollegeId())
+                .build();
+        Role role = Role.builder()
+                .college(savedCollege)
+                .roleName("COLLEGE_ADMIN")
+                .roleDescription("College Admin for " + savedCollege.getCollegeName())
+                .build();
+
+        UserRole userRole = UserRole.builder()
+                .user(collegeAdmin)
+                .role(role)
+                .build();
+
+        userRepo.save(collegeAdmin);
+        roleRepo.save(role);
+        userRoleRepo.save(userRole);
+        return true;
     }
     public Page<CollegeDto> getAllCollege( int pageNo, int pageSize ) {
         Pageable pageable = PageRequest.of( pageNo, pageSize );
         return collegeRepository .findAll(pageable) .map(this::mapToDto);
     }
-    public CollegeDto getCollegeByCollegeId(UUID collegeId){
-        try{
-            Optional<CollegeEntity> collegeOptional = collegeRepository.findByCollegeId(collegeId);
-            if(collegeOptional.isPresent()){
-                CollegeEntity collegeEntity=collegeOptional.get();
-                return CollegeDto.builder()
-                        .collegeDescription(collegeEntity.getCollegeDescription())
-                        .collegeName(collegeEntity.getCollegeName())
-                        .collegeCode(collegeEntity.getCollegeCode())
-                        .universityName(collegeEntity.getUniversityName())
-                        .collegeId(collegeEntity.getCollegeId())
-                        .collegePhone(collegeEntity.getCollegePhone())
-                        .collegeEmail(collegeEntity.getCollegeEmail())
-                        .collegeState(collegeEntity.getCollegeState())
-                        .collegeZip(collegeEntity.getCollegeZip())
-                        .collegeAddress(collegeEntity.getCollegeAddress())
-                        .collegeCode(collegeEntity.getCollegeCode())
-                        .build();
-            }
-            else{
-                return null;
-            }
+    public CollegeDto getCollegeByCollegeId(UUID collegeId) {
+
+        Optional<CollegeEntity> collegeOptional =
+                collegeRepository.findByCollegeId(collegeId);
+
+        if (collegeOptional.isEmpty()) {
+            return null;
         }
-        catch (Exception e){
-            throw new RuntimeException(e);
-        }
+
+        CollegeEntity collegeEntity = collegeOptional.get();
+
+        return CollegeDto.builder()
+                .collegeDescription(collegeEntity.getCollegeDescription())
+                .collegeName(collegeEntity.getCollegeName())
+                .collegeCode(collegeEntity.getCollegeCode())
+                .universityName(collegeEntity.getUniversityName())
+                .collegeId(collegeEntity.getCollegeId())
+                .collegePhone(collegeEntity.getCollegePhone())
+                .collegeEmail(collegeEntity.getCollegeEmail())
+                .collegeState(collegeEntity.getCollegeState())
+                .collegeZip(collegeEntity.getCollegeZip())
+                .collegeAddress(collegeEntity.getCollegeAddress())
+                .build();
     }
     public CollegeDto updateCollegeData(UUID collegeId, CollegeDataRequest collegeDataRequest){
         try{
@@ -152,7 +154,6 @@ public class CollegeService {
                         .collegeState(collegeEntity.getCollegeState())
                         .collegeZip(collegeEntity.getCollegeZip())
                         .collegeAddress(collegeEntity.getCollegeAddress())
-                        .collegeCode(collegeEntity.getCollegeCode())
                         .build();
             }
             else{
@@ -163,25 +164,24 @@ public class CollegeService {
             throw new RuntimeException(e);
         }
     }
-    public boolean deleteCollegeData(UUID collegeId){
-        try{
-            if(collegeId==null){
-                return false;
-            }
-            collegeRepository.deleteById(collegeId);
-            // delete all users of college
-            userService.deleteAllUsersOfCollegeByCollegeId(collegeId);
-            //delete all roles of college
-            roleService.deleteAllRolesOfCollege(collegeId);
-            // delete all permissions of college
-            rolePermissionService.deleteAllRolesPermissionOfCollege(collegeId);
-            //delete all modules of college
-            moduleService.deleteCollegeModule(collegeId);
-            return true;
+    @Transactional
+    public boolean deleteCollegeData(UUID collegeId) {
+
+        if (collegeId == null) {
+            return false;
         }
-        catch (Exception e){
-            throw new RuntimeException(e);
-        }
+
+        moduleService.deleteCollegeModule(collegeId);
+
+        rolePermissionService.deleteAllRolesPermissionOfCollege(collegeId);
+
+        userService.deleteAllUsersOfCollegeByCollegeId(collegeId);
+
+        roleService.deleteAllRolesOfCollege(collegeId);
+
+        collegeRepository.deleteById(collegeId);
+
+        return true;
     }
     public CollegeDto mapToDto( CollegeEntity collegeEntity ) {
         return CollegeDto
