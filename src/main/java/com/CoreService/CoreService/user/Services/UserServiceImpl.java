@@ -30,11 +30,11 @@ public  class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse createUser(UserRequsets requsets) {
-        if (userRepo.existsByUserId(requsets.getUserid())) {
+        if (userRepo.existsByUserId(requsets.getUserId())) {
             throw new RuntimeException("User id already exists");
         }
         UserEntity userEntity = new UserEntity();
-        userEntity.setUserId(requsets.getUserid());
+        userEntity.setUserId(requsets.getUserId());
         userEntity.setPassword(passwordEncoder.encode(requsets.getPassword()));
         userEntity.setEmail(requsets.getEmail());
         userEntity.setCollegeId(collegeContext.getCollegeId());
@@ -269,10 +269,10 @@ public  class UserServiceImpl implements UserService {
         return userRepo.existsByCollegeIdAndUserId(collegeContext.getCollegeId(), userId);
     }
     public boolean updateByAdmin(UserRequsets updateRequest) {
-        if(!userRepo.existsByCollegeIdAndUserId(CollegeContext.getCollegeId(), updateRequest.getUserid())){
+        if(!userRepo.existsByCollegeIdAndUserId(CollegeContext.getCollegeId(), updateRequest.getUserId())){
             throw new RuntimeException("User not found");
         }
-        UserEntity user=userRepo.findByUserIdAndCollegeId(updateRequest.getUserid(),CollegeContext.getCollegeId())
+        UserEntity user=userRepo.findByUserIdAndCollegeId(updateRequest.getUserId(),CollegeContext.getCollegeId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         if(updateRequest.getUserName()!=null){
             user.setUserName(updateRequest.getUserName());

@@ -11,11 +11,11 @@ import lombok.*;
 @AllArgsConstructor
 public class UserRequsets {
     @NotBlank
-    private String userid;
+    private String userId;
 
     private String password;
 
     @Email
     private String email;
-    private String UserName;
+    private String userName;
 }

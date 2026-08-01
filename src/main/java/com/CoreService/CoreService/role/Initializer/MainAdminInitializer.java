@@ -34,11 +34,12 @@ public class MainAdminInitializer implements CommandLineRunner {
         // Find SUPER_ADMIN role
         Role superAdminRole = roleRepository
                 .findByRoleNameAndCollegeIsNull("MAIN_ADMIN")
-                .orElseThrow(() -> new RuntimeException("SUPER_ADMIN role not found"));
+                .orElseThrow(() -> new RuntimeException("MAIN_ADMIN role not found"));
 
         // Create Super Admin user
         UserEntity admin = UserEntity.builder()
                 .userName("Main Admin")
+                .userId("MainAdmin001")
                 .email("vatsanmol4@gmail.com")
                 .password(passwordEncoder.encode("Admin@123"))
                 .activate(true)
@@ -51,7 +52,6 @@ public class MainAdminInitializer implements CommandLineRunner {
                 .user(admin)
                 .role(superAdminRole)
                 .build();
-
         userRoleRepository.save(userRole);
 
         System.out.println("Super Admin created successfully.");

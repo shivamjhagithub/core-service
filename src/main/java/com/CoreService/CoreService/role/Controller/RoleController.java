@@ -34,10 +34,10 @@ public class RoleController {
                 .body(roleService.createRole(request));
     }
 
+
     @GetMapping
     @PreAuthorize("hasAuthority('VIEW_ROLE')")
     public ResponseEntity<List<RoleResponse>> getAllRoles() {
-
         return ResponseEntity.ok(roleService.getAllRoles());
     }
 

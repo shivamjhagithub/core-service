@@ -1,9 +1,7 @@
 package com.CoreService.CoreService.College.Entities;
 
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 
@@ -12,6 +10,8 @@ import java.util.UUID;
 @Setter
 @Getter
 @Entity
+@AllArgsConstructor
+@NoArgsConstructor
 public class CollegeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -7,6 +7,7 @@ import com.CoreService.CoreService.Permission.Responses.MultiplePermissionRespon
 import com.CoreService.CoreService.Permission.Responses.PermissionReponse;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -14,10 +15,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@AllArgsConstructor
-@NoArgsConstructor
+@RequiredArgsConstructor
 public class PermissionService {
-    private PermissionRepository permissionRepository;
+    private final PermissionRepository permissionRepository;
 
     public boolean addPermission(PermissionRequest permissionRequest) {
         try{

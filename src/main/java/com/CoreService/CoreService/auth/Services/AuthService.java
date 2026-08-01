@@ -143,6 +143,7 @@ public class AuthService {
     public LoginResponse generateLoginResponse(UserEntity user) {
 
         UUID collegeId = user.getCollegeId();
+        System.out.println("College Id: " + collegeId);
 
         List<UserRole> userRoles = userRoleRepository.findByUser(user);
 
@@ -157,10 +158,10 @@ public class AuthService {
         List<String> modules;
 
         if (isMainAdmin) {
-
+            collegeId=null;
             permissions = permissionRepository.findAll()
                     .stream()
-                    .map(permission -> permission.getPermissionName().toUpperCase())
+                    .map(permission -> permission.getPermissionCode().toUpperCase())
                     .distinct()
                     .toList();
 
@@ -179,7 +180,7 @@ public class AuthService {
                                     .stream()
                     )
                     .map(rolePermission ->
-                            rolePermission.getPermission().getPermissionName().toUpperCase()
+                            rolePermission.getPermission().getPermissionCode().toUpperCase()
                     )
                     .distinct()
                     .toList();

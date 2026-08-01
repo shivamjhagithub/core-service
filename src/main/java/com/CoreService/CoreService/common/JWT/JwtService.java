@@ -51,7 +51,6 @@ public class JwtService {
 
         return Jwts.builder()
                 .subject(jwtDto.getUserId())
-
                 .claim("collegeId", jwtDto.getCollegeId())
                 .claim("roles", jwtDto.getRoles())
                 .claim("permissions", jwtDto.getPermissions())

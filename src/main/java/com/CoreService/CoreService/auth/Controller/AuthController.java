@@ -32,6 +32,7 @@ public class AuthController {
          return ResponseEntity.ok(loginResponse);
       }
       catch (Exception e){
+         e.printStackTrace();
          return ResponseEntity.badRequest().body(new LoginResponse("Invalid username or password"));
       }
    }
