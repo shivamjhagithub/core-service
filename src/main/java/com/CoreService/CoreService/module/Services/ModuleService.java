@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -155,6 +156,39 @@ public class ModuleService {
                 .universityName(collegeEntity.getUniversityName())
                 .build();
     }
+    /**
+     * Switches on the modules a new college starts with. Called during college
+     * provisioning so no other module has to write to the college-module tables.
+     */
+    @Transactional
+    public int enableDefaultModules(CollegeEntity college, List<String> moduleCodes) {
+
+        int enabled = 0;
+        for (String moduleCode : moduleCodes) {
+
+            Optional<ModuleEntity> module = moduleRepository.findByModuleCode(moduleCode);
+            if (module.isEmpty()) {
+                continue;
+            }
+
+            CollegeModuleEntity existing = collegeModuleRepository
+                    .findByCollege_collegeIdAndModule_moduleCode(college.getCollegeId(), moduleCode);
+
+            if (existing != null) {
+                existing.setEnabled(true);
+                collegeModuleRepository.save(existing);
+            } else {
+                collegeModuleRepository.save(CollegeModuleEntity.builder()
+                        .college(college)
+                        .module(module.get())
+                        .enabled(true)
+                        .build());
+            }
+            enabled++;
+        }
+        return enabled;
+    }
+
     public boolean deleteCollegeModule(UUID collegeId) {
         try {
             collegeModuleRepository.deleteAllByCollege_CollegeId(collegeId);

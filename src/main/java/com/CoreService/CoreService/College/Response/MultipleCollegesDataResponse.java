@@ -2,7 +2,7 @@ package com.CoreService.CoreService.College.Response;
 
 import com.CoreService.CoreService.College.Dto.CollegeDto;
 import com.CoreService.CoreService.College.Entities.CollegeEntity;
-import com.CoreService.CoreService.common.Response.BasicResponse;
+import com.CoreService.CoreService.common.response.BasicResponse;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.springframework.data.domain.Page;

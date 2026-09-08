@@ -2,155 +2,148 @@ package com.CoreService.CoreService.Permission.Initializer;
 
 import com.CoreService.CoreService.Permission.Entities.PermissionEntity;
 import com.CoreService.CoreService.Permission.Repository.PermissionRepository;
-import com.CoreService.CoreService.module.Entities.ModuleEntity;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Seeds the permission catalogue. Idempotent, so it can run on every start.
+ * <p>
+ * Two naming conventions coexist: the original {@code VERB_NOUN} codes used by
+ * the user, role and college modules, and the {@code NOUN_VERB} codes used by
+ * every module added since (mirroring
+ * {@link com.CoreService.CoreService.common.security.Permissions}). New codes
+ * should follow {@code NOUN_VERB}.
+ */
 @Component
 @RequiredArgsConstructor
 @Order(1)
-public class PermissionInitializer
-        implements CommandLineRunner {
+public class PermissionInitializer implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(PermissionInitializer.class);
 
     private final PermissionRepository permissionRepository;
+
     @Override
     public void run(String... args) {
-        Map<String, String> permissions = Map.ofEntries(
 
-                // User
-                Map.entry("CREATE_USER", "Create users"),
-                Map.entry("UPDATE_USER", "Update users"),
-                Map.entry("DELETE_USER", "Delete users"),
-                Map.entry("VIEW_USER", "View users"),
-                Map.entry("VIEW_ALL_USER", "view all users"),
-                Map.entry("VIEW_ALL_COLLEGE_USER", "view all users of a college"),
-                Map.entry("DELETE_ALL_COLLEGE_USER", "delete all users of a college"),
-                // Role
-                Map.entry("CREATE_ROLE", "Create roles"),
-                Map.entry("UPDATE_ROLE", "Update roles"),
-                Map.entry("DELETE_ROLE", "Delete roles"),
-                Map.entry("VIEW_ROLE", "View roles"),
-                Map.entry("ASSIGN_ROLE", "Assign roles to users"),
-                Map.entry("REMOVE_ROLE", "Remove roles from users"),
+        Map<String, String> permissions = new LinkedHashMap<>();
 
-                // Attendance
-                Map.entry("MARK_ATTENDANCE", "Mark attendance"),
-                Map.entry("EDIT_ATTENDANCE", "Edit attendance"),
-                Map.entry("VIEW_ATTENDANCE", "View attendance"),
-                Map.entry("DELETE_ATTENDANCE", "Delete attendance"),
+        // --- Platform / user administration (legacy VERB_NOUN codes) ---
+        permissions.put("CREATE_USER", "Create users");
+        permissions.put("UPDATE_USER", "Update users");
+        permissions.put("DELETE_USER", "Delete users");
+        permissions.put("VIEW_USER", "View users");
+        permissions.put("VIEW_ALL_USER", "View all users");
+        permissions.put("VIEW_ALL_COLLEGE_USER", "View all users of a college");
+        permissions.put("DELETE_ALL_COLLEGE_USER", "Delete all users of a college");
+        permissions.put("DELETE_ALL_COLLEGE_USERS", "Delete all users of a college");
 
-                // Classes
-                Map.entry("CREATE_CLASS", "Create classes"),
-                Map.entry("UPDATE_CLASS", "Update classes"),
-                Map.entry("DELETE_CLASS", "Delete classes"),
-                Map.entry("VIEW_CLASS", "View classes"),
-                Map.entry("TAKE_CLASS", "Conduct class"),
+        permissions.put("CREATE_ROLE", "Create roles");
+        permissions.put("UPDATE_ROLE", "Update roles");
+        permissions.put("DELETE_ROLE", "Delete roles");
+        permissions.put("VIEW_ROLE", "View roles");
+        permissions.put("ASSIGN_ROLE", "Assign roles to users");
+        permissions.put("REMOVE_ROLE", "Remove roles from users");
 
-                // Timetable
-                Map.entry("CREATE_TIMETABLE", "Create timetable"),
-                Map.entry("UPDATE_TIMETABLE", "Update timetable"),
-                Map.entry("DELETE_TIMETABLE", "Delete timetable"),
-                Map.entry("VIEW_TIMETABLE", "View timetable"),
+        permissions.put("GET_PERMISSION", "Read the permission catalogue");
+        permissions.put("ASSIGN_PERMISSION", "Grant a permission to a role");
+        permissions.put("REMOVE_PERMISSION", "Revoke a permission from a role");
 
-                // Exams
-                Map.entry("CREATE_EXAM", "Create exams"),
-                Map.entry("UPDATE_EXAM", "Update exams"),
-                Map.entry("DELETE_EXAM", "Delete exams"),
-                Map.entry("VIEW_EXAM", "View exams"),
-                Map.entry("ENTER_MARKS", "Enter marks"),
-                Map.entry("UPDATE_MARKS", "Update marks"),
-                Map.entry("VIEW_MARKS", "View marks"),
-                Map.entry("PUBLISH_RESULT", "Publish results"),
+        permissions.put("VIEW_PROFILE", "View profile");
+        permissions.put("UPDATE_PROFILE", "Update profile");
+        permissions.put("VIEW_SETTINGS", "View college settings");
+        permissions.put("UPDATE_SETTINGS", "Update college settings");
+        permissions.put("VIEW_REPORT", "View reports");
+        permissions.put("EXPORT_REPORT", "Export reports");
 
-                // Assignments
-                Map.entry("CREATE_ASSIGNMENT", "Create assignments"),
-                Map.entry("UPDATE_ASSIGNMENT", "Update assignments"),
-                Map.entry("DELETE_ASSIGNMENT", "Delete assignments"),
-                Map.entry("VIEW_ASSIGNMENT", "View assignments"),
-                Map.entry("SUBMIT_ASSIGNMENT", "Submit assignments"),
-                Map.entry("GRADE_ASSIGNMENT", "Grade assignments"),
+        // --- Academic structure ---
+        permissions.put("ACADEMIC_MANAGE", "Manage departments, programs, sessions, semesters and subjects");
+        permissions.put("ACADEMIC_VIEW", "View the academic structure");
 
-                // Notice
-                Map.entry("CREATE_NOTICE", "Create notices"),
-                Map.entry("UPDATE_NOTICE", "Update notices"),
-                Map.entry("DELETE_NOTICE", "Delete notices"),
-                Map.entry("VIEW_NOTICE", "View notices"),
+        // --- Student and teacher records ---
+        permissions.put("STUDENT_CREATE", "Create student records");
+        permissions.put("STUDENT_UPDATE", "Update student records");
+        permissions.put("STUDENT_VIEW", "View student records");
+        permissions.put("TEACHER_CREATE", "Create teacher records");
+        permissions.put("TEACHER_UPDATE", "Update teacher records");
+        permissions.put("TEACHER_VIEW", "View teacher records");
 
-                // Messaging
-                Map.entry("SEND_MESSAGE", "Send messages"),
-                Map.entry("VIEW_MESSAGE", "View messages"),
-                Map.entry("DELETE_MESSAGE", "Delete messages"),
+        // --- Classroom ---
+        permissions.put("CLASSROOM_CREATE", "Create classrooms");
+        permissions.put("CLASSROOM_UPDATE", "Update classrooms");
+        permissions.put("CLASSROOM_DELETE", "Delete classrooms");
+        permissions.put("CLASSROOM_VIEW", "View classrooms");
+        permissions.put("CLASSROOM_MEMBER_MANAGE", "Add or remove classroom members");
+        permissions.put("CLASSROOM_PERMISSION_MANAGE", "Configure classroom permissions");
 
-                // Events
-                Map.entry("CREATE_EVENT", "Create events"),
-                Map.entry("UPDATE_EVENT", "Update events"),
-                Map.entry("DELETE_EVENT", "Delete events"),
-                Map.entry("VIEW_EVENT", "View events"),
+        // --- Attendance ---
+        permissions.put("ATTENDANCE_CREATE", "Create attendance sessions and mark attendance");
+        permissions.put("ATTENDANCE_UPDATE", "Update attendance records");
+        permissions.put("ATTENDANCE_VIEW", "View attendance and reports");
 
-                // Library
-                Map.entry("ADD_BOOK", "Add books"),
-                Map.entry("UPDATE_BOOK", "Update books"),
-                Map.entry("DELETE_BOOK", "Delete books"),
-                Map.entry("VIEW_BOOK", "View books"),
-                Map.entry("ISSUE_BOOK", "Issue books"),
-                Map.entry("RETURN_BOOK", "Return books"),
+        // --- Syllabus ---
+        permissions.put("SYLLABUS_MANAGE", "Manage syllabi, units and topics");
+        permissions.put("SYLLABUS_VIEW", "View syllabi and progress");
 
-                // Hostel
-                Map.entry("ALLOCATE_ROOM", "Allocate hostel rooms"),
-                Map.entry("UPDATE_ROOM", "Update hostel rooms"),
-                Map.entry("VIEW_ROOM", "View hostel rooms"),
-                Map.entry("VACATE_ROOM", "Vacate hostel rooms"),
+        // --- Assignment ---
+        permissions.put("ASSIGNMENT_CREATE", "Create assignments");
+        permissions.put("ASSIGNMENT_UPDATE", "Update assignments");
+        permissions.put("ASSIGNMENT_DELETE", "Delete assignments");
+        permissions.put("ASSIGNMENT_VIEW", "View assignments");
+        permissions.put("ASSIGNMENT_SUBMIT", "Submit assignments");
+        permissions.put("ASSIGNMENT_GRADE", "Grade assignment submissions");
 
-                // Fees
-                Map.entry("COLLECT_FEES", "Collect fees"),
-                Map.entry("UPDATE_FEES", "Update fee records"),
-                Map.entry("VIEW_FEES", "View fee records"),
+        // --- Study material ---
+        permissions.put("MATERIAL_UPLOAD", "Upload study material");
+        permissions.put("MATERIAL_DELETE", "Delete study material");
+        permissions.put("MATERIAL_VIEW", "View study material");
 
-                // Leave
-                Map.entry("APPLY_LEAVE", "Apply leave"),
-                Map.entry("APPROVE_LEAVE", "Approve leave"),
-                Map.entry("REJECT_LEAVE", "Reject leave"),
-                Map.entry("VIEW_LEAVE", "View leave requests"),
+        // --- Announcement ---
+        permissions.put("ANNOUNCEMENT_CREATE", "Create announcements");
+        permissions.put("ANNOUNCEMENT_DELETE", "Delete announcements");
+        permissions.put("ANNOUNCEMENT_VIEW", "View announcements");
 
-                // Reports
-                Map.entry("VIEW_REPORT", "View reports"),
-                Map.entry("EXPORT_REPORT", "Export reports"),
+        // --- Chat ---
+        permissions.put("CHAT_SEND", "Send chat messages");
+        permissions.put("CHAT_VIEW", "Read chat history");
 
-                // Profile
-                Map.entry("VIEW_PROFILE", "View profile"),
-                Map.entry("UPDATE_PROFILE", "Update profile"),
+        // --- Video conference ---
+        permissions.put("MEETING_CREATE", "Schedule meetings");
+        permissions.put("MEETING_UPDATE", "Update, start, end or cancel meetings");
+        permissions.put("MEETING_JOIN", "Join meetings");
+        permissions.put("MEETING_VIEW", "View meetings");
 
-                // Settings
-                Map.entry("VIEW_SETTINGS", "View settings"),
-                Map.entry("UPDATE_SETTINGS", "Update settings"),
+        // --- Notification / dashboard / audit ---
+        permissions.put("NOTIFICATION_VIEW", "View notifications");
+        permissions.put("DASHBOARD_VIEW", "View dashboards");
+        permissions.put("AUDIT_VIEW", "View audit logs");
 
-                //permissions
-                Map.entry("GET_PERMISSION","can get permissions data"),
-                Map.entry("ASSIGN_PERMISSION","permission can be assigned to role"),
-                Map.entry("REMOVE_PERMISSION","permission can be deassigned for role")
-        );
-
-
+        int created = 0;
         for (Map.Entry<String, String> entry : permissions.entrySet()) {
 
             String permissionCode = entry.getKey();
-            String description = entry.getValue();
 
-            if (!permissionRepository.existsByPermissionCode(permissionCode)) {
-
-                PermissionEntity permission = PermissionEntity.builder()
-                        .permissionCode(permissionCode)
-                        .permissionName(permissionCode.replace("_", " "))
-                        .permissionDescription(description)
-                        .build();
-
-                permissionRepository.save(permission);
+            if (Boolean.TRUE.equals(permissionRepository.existsByPermissionCode(permissionCode))) {
+                continue;
             }
+
+            permissionRepository.save(PermissionEntity.builder()
+                    .permissionCode(permissionCode)
+                    .permissionName(permissionCode.replace('_', ' '))
+                    .permissionDescription(entry.getValue())
+                    .build());
+            created++;
+        }
+
+        if (created > 0) {
+            log.info("Seeded {} new permissions", created);
         }
     }
 }

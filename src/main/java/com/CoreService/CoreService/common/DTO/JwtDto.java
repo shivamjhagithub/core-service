@@ -1,4 +1,4 @@
-package com.CoreService.CoreService.common.DTO;
+package com.CoreService.CoreService.common.dto;
 
 
 import lombok.Builder;

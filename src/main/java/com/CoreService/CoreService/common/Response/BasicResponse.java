@@ -1,4 +1,4 @@
-package com.CoreService.CoreService.common.Response;
+package com.CoreService.CoreService.common.response;
 
 import lombok.*;
 import lombok.experimental.SuperBuilder;

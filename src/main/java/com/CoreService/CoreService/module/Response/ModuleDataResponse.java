@@ -1,6 +1,6 @@
 package com.CoreService.CoreService.module.Response;
 
-import com.CoreService.CoreService.common.Response.BasicResponse;
+import com.CoreService.CoreService.common.response.BasicResponse;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;

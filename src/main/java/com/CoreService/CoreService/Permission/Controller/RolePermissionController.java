@@ -5,7 +5,7 @@ import com.CoreService.CoreService.Permission.Responses.MultiplePermissionRespon
 import com.CoreService.CoreService.Permission.Responses.PermissionReponse;
 import com.CoreService.CoreService.Permission.Responses.RoleDataResponse;
 import com.CoreService.CoreService.Permission.Services.RolePermissionService;
-import com.CoreService.CoreService.common.Response.BasicResponse;
+import com.CoreService.CoreService.common.response.BasicResponse;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +59,7 @@ public class RolePermissionController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(BasicResponse.builder().message("Permission Not Found").build());
     }
     @PutMapping("/{roleId}/permissions")
-    @PreAuthorize("hasAuthority('ASSIGN_PERMISSION') or hasRole(''COLLEGE_ADMIN)")
+    @PreAuthorize("hasAuthority('ASSIGN_PERMISSION') or hasRole('COLLEGE_ADMIN')")
     public ResponseEntity<BasicResponse> updateRolePermissions(
             @PathVariable UUID roleId,
             @RequestBody UpdateRolePermissionRequest request) {

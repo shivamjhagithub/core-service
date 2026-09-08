@@ -1,0 +1,15 @@
+package com.CoreService.CoreService.common.exception;
+
+public enum ErrorCode {
+
+    VALIDATION_FAILED,
+    RESOURCE_NOT_FOUND,
+    DUPLICATE_RESOURCE,
+    BUSINESS_RULE_VIOLATION,
+    UNAUTHORIZED,
+    FORBIDDEN,
+    TENANT_MISMATCH,
+    MODULE_DISABLED,
+    RATE_LIMIT_EXCEEDED,
+    INTERNAL_ERROR
+}

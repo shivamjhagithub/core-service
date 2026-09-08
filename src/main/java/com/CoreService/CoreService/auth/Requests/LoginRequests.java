@@ -1,7 +1,7 @@
 package com.CoreService.CoreService.auth.Requests;
 
 
-import jakarta.persistence.Entity;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Setter
@@ -10,6 +10,10 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoginRequests {
+
+    @NotBlank(message = "User id is required")
     private String userId;
+
+    @NotBlank(message = "Password is required")
     private String password;
 }

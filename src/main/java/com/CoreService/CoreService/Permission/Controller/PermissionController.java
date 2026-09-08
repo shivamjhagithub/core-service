@@ -3,7 +3,7 @@ package com.CoreService.CoreService.Permission.Controller;
 import com.CoreService.CoreService.Permission.Requests.PermissionRequest;
 import com.CoreService.CoreService.Permission.Responses.MultiplePermissionResponse;
 import com.CoreService.CoreService.Permission.Services.PermissionService;
-import com.CoreService.CoreService.common.Response.BasicResponse;
+import com.CoreService.CoreService.common.response.BasicResponse;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;

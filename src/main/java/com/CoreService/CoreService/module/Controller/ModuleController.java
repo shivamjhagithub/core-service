@@ -1,6 +1,6 @@
 package com.CoreService.CoreService.module.Controller;
 
-import com.CoreService.CoreService.common.Response.BasicResponse;
+import com.CoreService.CoreService.common.response.BasicResponse;
 import com.CoreService.CoreService.module.Request.ModuleDataRequest;
 import com.CoreService.CoreService.module.Response.ModuleDataResponse;
 import com.CoreService.CoreService.module.Services.ModuleService;

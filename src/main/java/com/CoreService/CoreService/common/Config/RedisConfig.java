@@ -1,4 +1,4 @@
-package com.CoreService.CoreService.common.Config;
+package com.CoreService.CoreService.common.config;
 
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;

@@ -1,6 +1,6 @@
 package com.CoreService.CoreService.role.Response;
 
-import com.CoreService.CoreService.common.Response.BasicResponse;
+import com.CoreService.CoreService.common.response.BasicResponse;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 

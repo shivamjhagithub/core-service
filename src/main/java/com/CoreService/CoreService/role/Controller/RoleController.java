@@ -1,6 +1,6 @@
 package com.CoreService.CoreService.role.Controller;
 
-import com.CoreService.CoreService.common.Response.BasicResponse;
+import com.CoreService.CoreService.common.response.BasicResponse;
 import com.CoreService.CoreService.role.Requests.RoleRequest;
 import com.CoreService.CoreService.role.Response.RoleResponse;
 import com.CoreService.CoreService.role.Response.UserDataResponse;

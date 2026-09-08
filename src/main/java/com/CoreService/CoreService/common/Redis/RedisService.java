@@ -1,4 +1,4 @@
-package com.CoreService.CoreService.common.Redis;
+package com.CoreService.CoreService.common.redis;
 
 import lombok.RequiredArgsConstructor;
 

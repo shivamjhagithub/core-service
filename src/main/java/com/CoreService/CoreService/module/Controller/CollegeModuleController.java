@@ -2,7 +2,7 @@ package com.CoreService.CoreService.module.Controller;
 
 import com.CoreService.CoreService.College.Dto.CollegeDto;
 import com.CoreService.CoreService.College.Response.MultipleCollegesDataResponse;
-import com.CoreService.CoreService.common.Response.BasicResponse;
+import com.CoreService.CoreService.common.response.BasicResponse;
 import com.CoreService.CoreService.module.Request.CollegeModuleRequest;
 import com.CoreService.CoreService.module.Response.ModuleDataResponse;
 import com.CoreService.CoreService.module.Response.MultipleModuleDataResponse;

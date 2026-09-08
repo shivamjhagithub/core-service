@@ -1,6 +1,6 @@
 package com.CoreService.CoreService.user.Controller;
 
-import com.CoreService.CoreService.common.Response.BasicResponse;
+import com.CoreService.CoreService.common.response.BasicResponse;
 import com.CoreService.CoreService.common.context.UserContext;
 import com.CoreService.CoreService.user.Requests.PasswordChangeRequest;
 import com.CoreService.CoreService.user.Requests.UpdateRequest;

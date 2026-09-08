@@ -1,14 +1,16 @@
 package com.CoreService.CoreService.College.Controller;
 
 import com.CoreService.CoreService.College.Dto.CollegeDto;
+import com.CoreService.CoreService.College.Dto.CollegeProvisioningResult;
 import com.CoreService.CoreService.College.Request.CollegeDataRequest;
-import com.CoreService.CoreService.College.Response.CollegeDataResponse;
-import com.CoreService.CoreService.College.Response.MultipleCollegesDataResponse;
 import com.CoreService.CoreService.College.Services.CollegeService;
-import com.CoreService.CoreService.common.Response.BasicResponse;
-import com.CoreService.CoreService.common.context.CollegeContext;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
+import com.CoreService.CoreService.common.response.ApiResponse;
+import com.CoreService.CoreService.common.response.PageResponse;
+import com.CoreService.CoreService.common.security.TenantGuard;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,89 +20,82 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/college")
+@RequiredArgsConstructor
+@Tag(name = "College", description = "Tenant registration and settings")
 public class CollegeController {
-    @Autowired
-    private CollegeService collegeService;
 
+    private final CollegeService collegeService;
+    private final TenantGuard tenantGuard;
+
+    @PostMapping({"", "/", "/createCollege"})
     @PreAuthorize("hasRole('MAIN_ADMIN')")
-    @PostMapping("/createCollege")
-    public ResponseEntity<BasicResponse> createCollege(@RequestBody CollegeDataRequest collegeDataRequest) {
-        Boolean isCreated=collegeService.createCollege(collegeDataRequest);
-        if(isCreated){
-            return ResponseEntity.ok(BasicResponse.builder().message("College Created Successfully").success(true).build());
-        }
-        else{
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(BasicResponse.builder().message("College Not Implemented").success(false).build());
-        }
+    @Operation(summary = "Provision a college",
+            description = """
+                    Creates the tenant, its default roles, its first administrator and its
+                    enabled modules. The administrator's temporary password is returned once
+                    and cannot be retrieved again.""")
+    public ResponseEntity<ApiResponse<CollegeProvisioningResult>> createCollege(
+            @Valid @RequestBody CollegeDataRequest request) {
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("College created successfully",
+                        collegeService.createCollege(request)));
     }
-    @PreAuthorize("hasRole('MAIN_ADMIN')")
+
     @GetMapping("/allCollege")
-    public ResponseEntity<MultipleCollegesDataResponse> getAllCollege(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10")int size) {
-        Page<CollegeDto> collegesData=collegeService.getAllCollege(page,size);
-        return ResponseEntity.ok(MultipleCollegesDataResponse.builder().colleges(collegesData).success(true).build());
+    @PreAuthorize("hasRole('MAIN_ADMIN')")
+    @Operation(summary = "List every college on the platform")
+    public ResponseEntity<ApiResponse<PageResponse<CollegeDto>>> getAllCollege(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        return ResponseEntity.ok(ApiResponse.success(
+                PageResponse.from(collegeService.getAllCollege(page, size))));
     }
+
     @GetMapping("/myCollege")
-    public ResponseEntity<CollegeDataResponse> getCollege() {
-        if(CollegeContext.getCollegeId()==null){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(CollegeDataResponse.builder().message("College not found").success(false).college(null).build());
-        }
-        CollegeDto collegeDto= collegeService.getCollegeByCollegeId(CollegeContext.getCollegeId());
-        if(collegeDto==null){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(CollegeDataResponse.builder().message("College not found").success(false).college(null).build());
-        }
-        return ResponseEntity.ok(CollegeDataResponse.builder().college(collegeDto).success(true).message("Found College Data").build());
+    @Operation(summary = "Read the college of the authenticated user")
+    public ResponseEntity<ApiResponse<CollegeDto>> getMyCollege() {
+        return ResponseEntity.ok(ApiResponse.success(
+                collegeService.getCollegeByCollegeId(tenantGuard.requireCollegeId())));
     }
+
+    @PutMapping({"", "/"})
     @PreAuthorize("hasAuthority('UPDATE_SETTINGS')")
-    @PutMapping("/")
-    public ResponseEntity<CollegeDataResponse> updateCollegeData(@RequestBody CollegeDataRequest collegeDataRequest) {
-        if(CollegeContext.getCollegeId()==null){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(CollegeDataResponse.builder().message("College not found").success(false).college(null).build());
-        }
-        CollegeDto collegeDto= collegeService.updateCollegeData(CollegeContext.getCollegeId(),collegeDataRequest);
-        if(collegeDto==null){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(CollegeDataResponse.builder().message("College not found").success(false).college(null).build());
-        }
-        return ResponseEntity.ok(CollegeDataResponse.builder().college(collegeDto).success(true).message("College Data Updated").build());
+    @Operation(summary = "Update the college of the authenticated user")
+    public ResponseEntity<ApiResponse<CollegeDto>> updateCollegeData(
+            @Valid @RequestBody CollegeDataRequest request) {
+
+        return ResponseEntity.ok(ApiResponse.success("College updated",
+                collegeService.updateCollegeData(tenantGuard.requireCollegeId(), request)));
     }
+
+    @DeleteMapping("/{collegeId}")
     @PreAuthorize("hasRole('MAIN_ADMIN')")
-    @DeleteMapping("/")
-    public ResponseEntity<BasicResponse> deleteCollege() {
-        if(CollegeContext.getCollegeId()==null){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(CollegeDataResponse.builder().message("College not found").success(false).college(null).build());
-        }
-        Boolean isDeleted= collegeService.deleteCollegeData(CollegeContext.getCollegeId());
-        if(isDeleted){
-            return ResponseEntity.ok(BasicResponse.builder().message("College Deleted Successfully").success(true).build());
-        }
-        else
-            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body(BasicResponse.builder().message("College Not Deleted").build());
+    @Operation(summary = "Delete a college and everything it owns")
+    public ResponseEntity<ApiResponse<Void>> deleteCollege(@PathVariable UUID collegeId) {
+        collegeService.deleteCollegeData(collegeId);
+        return ResponseEntity.ok(ApiResponse.message("College deleted successfully"));
     }
-    @PreAuthorize("hasRole('MAIN_ADMIN')")
+
     @GetMapping("/{collegeId}")
-    public ResponseEntity<CollegeDataResponse> getCollegeById(@PathVariable("collegeId") UUID collegeId) {
-        if(collegeId==null){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(CollegeDataResponse.builder().success(false).college(null).message("College ID is missing").build());
-        }
-        CollegeDto collegeDto=collegeService.getCollegeByCollegeId(collegeId);
-        if(collegeDto==null){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(CollegeDataResponse.builder().success(false).college(null).message("College Not Found").build());
-        }
-        return ResponseEntity.ok(CollegeDataResponse.builder().success(true).message("Found College Data").college(collegeDto).build());
-    }
     @PreAuthorize("hasRole('MAIN_ADMIN')")
+    @Operation(summary = "Read any college by id")
+    public ResponseEntity<ApiResponse<CollegeDto>> getCollegeById(@PathVariable UUID collegeId) {
+        return ResponseEntity.ok(ApiResponse.success(collegeService.getCollegeByCollegeId(collegeId)));
+    }
+
     @GetMapping("/search")
-    public ResponseEntity<MultipleCollegesDataResponse> searchColleges(@RequestParam(required = false) String collegeName,
-                                                                       @RequestParam(required = false) String universityName,
-                                                                       @RequestParam(required = false) String city,
-                                                                       @RequestParam(defaultValue = "0") int page,
-                                                                       @RequestParam(defaultValue = "10") int size) {
-        Page<CollegeDto> colleges = collegeService.searchColleges(collegeName, universityName, city, page, size);
-        return ResponseEntity.ok(
-                MultipleCollegesDataResponse
-                        .builder()
-                        .success(true)
-                        .message("Colleges fetched successfully")
-                        .colleges(colleges)
-                        .build());
+    @PreAuthorize("hasRole('MAIN_ADMIN')")
+    @Operation(summary = "Search colleges by name, university or city")
+    public ResponseEntity<ApiResponse<PageResponse<CollegeDto>>> searchColleges(
+            @RequestParam(required = false) String collegeName,
+            @RequestParam(required = false) String universityName,
+            @RequestParam(required = false) String city,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        return ResponseEntity.ok(ApiResponse.success("Colleges fetched successfully",
+                PageResponse.from(collegeService.searchColleges(collegeName, universityName, city, page, size))));
     }
 }
