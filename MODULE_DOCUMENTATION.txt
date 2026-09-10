@@ -1,0 +1,1287 @@
+================================================================================
+  COLLEGE ERP CORE SERVICE
+  Module Documentation
+  Working  |  Tech Stack  |  Technologies  |  End-to-End Flow
+================================================================================
+
+Project     : core-service
+Type        : Modular monolith (ONE Spring Boot application, ONE database)
+Purpose     : Multi-tenant College ERP + Learning Management System +
+              real-time communication platform
+API base    : /api/v1
+WebSocket   : /ws  (STOMP)
+Port        : 8082
+Java        : 21
+Spring Boot : 4.1
+
+
+--------------------------------------------------------------------------------
+1. SHARED TECH STACK (used by EVERY module)
+--------------------------------------------------------------------------------
+
+Layer                 Technology
+--------------------  ----------------------------------------------------------
+Language              Java 21
+Framework             Spring Boot 4.1
+HTTP API              Spring Web MVC  (REST, /api/v1/**)
+Validation            Jakarta Validation  (DTO @Valid)
+JSON                  Jackson
+Security              Spring Security + method security (@PreAuthorize)
+Auth tokens           JJWT 0.12.7  (HMAC-signed access JWT)
+Password hashing      BCrypt
+ORM                   Spring Data JPA / Hibernate
+Database              MySQL 8  (single source of truth, InnoDB, utf8mb4)
+Migrations            Flyway  (schema owned by SQL, Hibernate only validates)
+Cache / OTP / limits  Redis 7  (Spring Data Redis)
+Async fan-out         Spring Application Events  (+ optional Apache Kafka)
+Real-time             Spring WebSocket + STOMP
+API docs              springdoc-openapi 3.1.1  (Swagger UI)
+Build                 Maven
+Tooling               Lombok
+Observability         Spring Actuator  (health, info)
+Tests                 JUnit 5, Mockito, H2 (MySQL compatibility mode)
+Deploy                Docker / Docker Compose
+
+How modules talk to each other (this is NOT microservices):
+
+  Mechanism                         Used for
+  --------------------------------  --------------------------------------------
+  Published service interfaces      Sync reads and authorization checks
+  Spring application events         Notifications / audit AFTER commit
+  Kafka (optional, off by default)  Async fan-out off the request thread
+
+Shared request gate (every tenant-scoped call):
+
+  authenticated?
+       -> which college?          (from SIGNED JWT, never from client input)
+       -> is the module enabled?  (ModuleAccessGuard)
+       -> has the permission?     (@PreAuthorize / classroom permission)
+       -> does the resource belong to this college?  (TenantGuard)
+       -> is the caller a member/owner?
+
+
+================================================================================
+2. MODULES
+================================================================================
+
+
+--------------------------------------------------------------------------------
+2.1  COMMON  (shared infrastructure, not a business module)
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.common
+Owns        : config, context, jwt, security, redis, websocket, exception,
+              entity bases, response envelope
+Tables      : none (infrastructure only)
+
+WORKING
+  Cross-cutting layer every feature module depends on.
+  - JwtFilter validates signature, expiry and revocation, then fills
+    UserContext and CollegeContext from the signed token.
+  - TenantGuard is the single ownership check. A cross-tenant hit is
+    returned as 404 (not 403) so callers cannot discover other colleges.
+  - RateLimitFilter uses Redis fixed-window counters (stricter on /auth).
+  - WebSocket handshake is open; CONNECT must carry a valid access token.
+    SUBSCRIBE is deny-by-default via WebSocketDestinationAuthorizer.
+  - GlobalExceptionHandler returns a consistent error envelope with no
+    stack traces.
+  - BaseEntity / TenantAwareEntity / AuditableEntity are the JPA bases.
+
+TECHNOLOGIES USED IN THIS MODULE
+  Spring Security, JJWT, Redis, Spring WebSocket/STOMP, HikariCP,
+  Spring Cache, Spring Async, springdoc-openapi, Jakarta Validation.
+
+KEY PIECES
+  JwtService / JwtFilter          token create + request authentication
+  CollegeContext / UserContext    ThreadLocal tenant + caller
+  TenantGuard                     college ownership
+  SecurityConfig                  filter chain + @EnableMethodSecurity
+  TokenBlacklistService           logout jti blacklist in Redis
+  RateLimitFilter                 Redis RPM budgets
+  RedisService                    cache, OTP, counters
+  WebSocketConfig                 STOMP broker at /ws
+  ApiResponse / PageResponse      HTTP envelope
+  DomainEvent                     event contract for listeners
+
+
+--------------------------------------------------------------------------------
+2.2  AUTH
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.auth
+API         : /api/v1/auth
+Tables      : auth_refresh_tokens
+Module code : (always on — identity is not toggleable)
+
+WORKING
+  Issues and rotates sessions. Login checks user id + BCrypt password,
+  then builds a JWT that already contains roles, permissions and the
+  college's enabled modules. Refresh tokens are opaque rows in MySQL
+  and rotate on every use. Logout deletes the refresh token AND
+  blacklists the access-token jti in Redis until it expires.
+  Forgot-password always reports success (no user-id enumeration).
+  OTP lives in Redis for 5 minutes. Changing or resetting a password
+  revokes every refresh token for that user.
+
+TECHNOLOGIES USED
+  Spring Security, BCrypt, JJWT, MySQL (refresh tokens), Redis (OTP,
+  reset window, access-token blacklist), Jakarta Validation.
+
+ENDPOINTS
+  POST /login
+  POST /refresh  (also /refreshToken)
+  POST|PUT /logout
+  POST /forgot-password
+  POST /verify-otp
+  POST /reset-password
+  POST /change-password
+
+FLOW
+  Client
+    -> POST /auth/login { userId, password }
+    -> AuthService: load user, BCrypt match, reject if deactivated
+    -> load roles + permissions + enabled modules
+    -> JwtService signs access token (sub, collegeId, roles, permissions,
+       modules, jti)
+    -> RefreshTokenService stores opaque refresh token in MySQL
+    -> LoginResponse { accessToken, refreshToken, user profile }
+
+  Later requests
+    Authorization: Bearer <access>
+    -> RateLimitFilter -> JwtFilter (sig / exp / blacklist)
+    -> UserContext + CollegeContext set
+    -> Controller / @PreAuthorize / service
+
+  Logout
+    -> delete refresh token row
+    -> blacklist access jti in Redis until expiry
+
+
+--------------------------------------------------------------------------------
+2.3  COLLEGE  (tenant)
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.College
+API         : /api/v1/college
+Tables      : colleges
+Module code : platform-level (MAIN_ADMIN)
+
+WORKING
+  A college is a tenant. MAIN_ADMIN provisions a college in one call:
+  college row, default roles, first COLLEGE_ADMIN, and enabled modules.
+  The admin temporary password is returned once and cannot be fetched
+  again. Deleting a college cascades to everything it owns
+  (ON DELETE CASCADE). College users read/update only their own tenant
+  via JWT collegeId. MAIN_ADMIN may target a tenant with X-College-Id.
+
+TECHNOLOGIES USED
+  Spring Web MVC, Spring Data JPA, MySQL, Spring Security
+  (@PreAuthorize hasRole MAIN_ADMIN / UPDATE_SETTINGS), Flyway V1.
+
+ENDPOINTS
+  POST   /                    provision college          MAIN_ADMIN
+  GET    /allCollege          list tenants               MAIN_ADMIN
+  GET    /search              search name/university/city MAIN_ADMIN
+  GET    /{collegeId}         read any college           MAIN_ADMIN
+  DELETE /{collegeId}         delete tenant + owned data MAIN_ADMIN
+  GET    /myCollege           current tenant
+  PUT    /                    update own college         UPDATE_SETTINGS
+
+FLOW
+  MAIN_ADMIN
+    -> POST /college
+    -> CollegeService.createCollege
+         1. insert colleges
+         2. seed COLLEGE_ADMIN / TEACHER / STUDENT roles
+         3. create first admin user + assign role
+         4. enable requested system modules on college_modules
+    -> return CollegeProvisioningResult (admin password once)
+
+
+--------------------------------------------------------------------------------
+2.4  USER
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.user
+API         : /api/v1/users
+Tables      : users
+Module code : USER_MANAGEMENT
+
+WORKING
+  Identity accounts. user_id is a natural key (not a UUID). college_id
+  is nullable so MAIN_ADMIN sits above any tenant. Passwords are BCrypt
+  hashed and never serialized. College admins create, activate,
+  deactivate, search and delete users inside their college. Password
+  change goes through this module or Auth, and both revoke sessions.
+
+TECHNOLOGIES USED
+  Spring Data JPA, BCrypt, MySQL, Spring Security (CREATE_USER,
+  VIEW_USER, UPDATE_USER, DELETE_USER, VIEW_ALL_COLLEGE_USER,
+  DELETE_ALL_COLLEGE_USERS).
+
+ENDPOINTS
+  POST   /                      create user
+  GET    /me                    own profile
+  GET    /{userId}              MAIN_ADMIN lookup
+  GET    /all                   MAIN_ADMIN list
+  GET    /college               users of current college
+  GET    /search?keyword=
+  GET    /checkUser?userId=
+  PATCH  /byUser                self update
+  PATCH  /byAdmin               college-admin update
+  PATCH  /{userId}/activate
+  PATCH  /{userId}/deactivate
+  PATCH  /changePassword
+  DELETE /{userId}
+  DELETE /all                   all users of college
+
+FLOW
+  COLLEGE_ADMIN (CREATE_USER)
+    -> POST /users
+    -> UserService hashes password, binds college_id from CollegeContext
+    -> persist users
+    -> Role module can then assign TEACHER / STUDENT / custom roles
+
+
+--------------------------------------------------------------------------------
+2.5  ROLE
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.role
+API         : /api/v1/roles
+Tables      : roles, user_roles
+Module code : USER_MANAGEMENT
+
+WORKING
+  Dynamic RBAC. Platform roles (MAIN_ADMIN, COLLEGE_ADMIN, TEACHER,
+  STUDENT) are seeded. A college can add its own roles. Assigning a
+  role to a user writes user_roles. The next login (or token refresh)
+  puts those roles and their permissions into the JWT.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL unique (college_id, role_name), Spring Security
+  (CREATE_ROLE, VIEW_ROLE, UPDATE_ROLE, DELETE_ROLE, ASSIGN_ROLE,
+  REMOVE_ROLE).
+
+ENDPOINTS
+  POST   /                         create role
+  GET    /                         list roles of college
+  GET    /{roleId}
+  PUT    /{roleId}
+  DELETE /{roleId}
+  GET    /exists/{roleName}
+  POST   /{roleId}/users/{userId}  assign
+  DELETE /{roleId}/users/{userId}  unassign
+  GET    /{roleId}/users
+  GET    /users/{userId}
+  DELETE /users/{userId}           strip all roles
+
+FLOW
+  Admin creates role
+    -> RoleService persists roles (college-scoped)
+    -> Permission module attaches permission codes
+    -> POST /roles/{roleId}/users/{userId}
+    -> user_roles row
+    -> next JWT contains the new role + permissions
+
+
+--------------------------------------------------------------------------------
+2.6  PERMISSION
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.Permission
+API         : /api/v1/permission
+              /api/v1/rolePermission
+Tables      : permissions, role_permissions
+Module code : USER_MANAGEMENT
+
+WORKING
+  Catalogue of permission codes (CREATE_USER, ASSIGNMENT_GRADE, ...).
+  MAIN_ADMIN owns the catalogue. College admins attach codes to roles
+  (single, multiple, or replace-all). Controllers assert them with
+  @PreAuthorize("hasAuthority('...')"). Feature services also check
+  classroom-level permissions on top of these.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL, Spring method security, seeded catalogue
+  via CommandLineRunner (kept in sync with Permissions.java).
+
+ENDPOINTS  (/permission)
+  POST   /addPermission              MAIN_ADMIN
+  DELETE /{permissionCode}           MAIN_ADMIN
+  GET    /all
+  GET    /search?keyword=
+  GET    /exists/{permissionCode}
+
+ENDPOINTS  (/rolePermission)
+  POST   /{roleId}/permission/{permissionId}
+  POST   /role/{roleId}/multiple-permissions
+  PUT    /{roleId}/permissions                 replace set
+  GET    /role/{roleId}
+  GET    /permission/{permissionId}
+  GET    /exists/{permissionId}/role/{roleId}
+  DELETE /{permissionId}/role/{roleId}
+
+FLOW
+  MAIN_ADMIN seeds / adds permission
+    -> College admin maps it onto a role
+    -> user with that role logs in
+    -> JWT permissions[] includes the code
+    -> @PreAuthorize allows or denies the endpoint
+
+
+--------------------------------------------------------------------------------
+2.7  MODULE  (feature toggles)
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.module
+API         : /api/v1/module
+              /api/v1/college-modules
+Tables      : system_modules, college_modules
+Published   : ModuleAccessGuard
+
+WORKING
+  Platform catalogue of ERP features a college can turn on or off.
+  Codes: USER_MANAGEMENT, ACADEMIC, CLASSROOM, ATTENDANCE, SYLLABUS,
+  ASSIGNMENT, STUDY_MATERIAL, ANNOUNCEMENT, CHAT, VIDEO_CONFERENCE,
+  NOTIFICATION.
+  ModuleAccessGuard.assertModuleEnabled(code) is called by every
+  feature module. Result is cached in Redis
+  (collegeId:moduleCode). MAIN_ADMIN bypasses the gate.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL, Spring Cache + Redis, Spring Security
+  (MAIN_ADMIN for toggle APIs).
+
+ENDPOINTS  (/module)
+  POST /createModule     MAIN_ADMIN
+  GET  /getAllModules
+
+ENDPOINTS  (/college-modules)
+  POST   /                                      assign module
+  PATCH  /status                                enable / disable
+  GET    /college/{collegeId}
+  GET    /colleges?moduleCode=
+  GET    /exists?collegeId=&moduleCode=
+  DELETE /college/{collegeId}
+  DELETE /college/{collegeId}/module/{moduleCode}
+
+FLOW
+  MAIN_ADMIN enables ASSIGNMENT for college X
+    -> college_modules.enabled = true
+    -> cache entry updated
+    -> AssignmentService calls ModuleAccessGuard
+    -> allowed; otherwise MODULE_DISABLED (HTTP 403)
+
+
+--------------------------------------------------------------------------------
+2.8  ACADEMIC
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.academic
+API         : /api/v1/academic
+Tables      : academic_departments, academic_programs, academic_sessions,
+              academic_semesters, academic_subjects
+Published   : AcademicLookupService
+Module code : ACADEMIC
+
+WORKING
+  Hierarchical academic master data, always scoped to the JWT college.
+
+    Department
+      -> Program
+           -> Semester
+                -> Subject
+    Academic Session  (one marked current via is_current)
+
+  Other modules never read these entities directly. They call
+  AcademicLookupService (attendance, syllabus, teacher, material).
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL (Flyway V2), MapStruct-style mappers,
+  pagination (PageResponse), TenantAwareEntity, permissions
+  ACADEMIC_MANAGE / ACADEMIC_VIEW.
+
+ENDPOINTS
+  /departments   CRUD + paged list
+  /programs      CRUD + filter by departmentId
+  /sessions      CRUD + mark current + get current
+  /semesters     CRUD + filter by programId
+  /subjects      CRUD + filter by semesterId
+
+FLOW
+  COLLEGE_ADMIN
+    -> create department -> program -> session (mark current)
+    -> create semester under program
+    -> create subjects under semester
+    -> Teacher module assigns subjects to teachers
+    -> Classroom / Syllabus / Attendance look up via AcademicLookupService
+
+
+--------------------------------------------------------------------------------
+2.9  STUDENT
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.student
+API         : /api/v1/students
+Tables      : students
+Published   : StudentLookupService
+Module code : ACADEMIC
+
+WORKING
+  Academic person record linked 1:1 to a users row (student_user_id).
+  Holds enrollment fields (program, semester, roll number, etc.).
+  Activate / deactivate is independent of the login account.
+  Dashboard and attendance consume StudentLookupService, not the
+  Student entity.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V2, TenantGuard, permissions STUDENT_CREATE /
+  STUDENT_UPDATE / STUDENT_VIEW.
+
+ENDPOINTS
+  POST   /                         create
+  PUT    /{studentId}              update
+  PATCH  /{studentId}/activate
+  PATCH  /{studentId}/deactivate
+  GET    /me
+  GET    /search?keyword=
+  GET    /by-user/{userId}
+  GET    /{studentId}
+  GET    /                         paged list
+
+FLOW
+  Admin creates User (STUDENT role)
+    -> POST /students { userId, program, semester, ... }
+    -> StudentService validates user + academic refs in this college
+    -> Classroom can add that userId as a student member
+
+
+--------------------------------------------------------------------------------
+2.10  TEACHER
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.teacher
+API         : /api/v1/teachers
+Tables      : teachers, teacher_subjects
+Module code : ACADEMIC
+
+WORKING
+  Academic person record linked 1:1 to a users row. Subjects are
+  assigned through teacher_subjects (validated via AcademicLookupService).
+  A teacher who owns or co-teaches a classroom can create assignments,
+  mark attendance, upload material, and host meetings — gated by
+  ClassroomAccessService, not only by this record.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V2, AcademicLookupService, permissions
+  TEACHER_CREATE / TEACHER_UPDATE / TEACHER_VIEW.
+
+ENDPOINTS
+  POST   /                                      create
+  PUT    /{teacherId}
+  PATCH  /{teacherId}/activate
+  PATCH  /{teacherId}/deactivate
+  GET    /me
+  GET    /search?keyword=
+  GET    /by-user/{userId}
+  GET    /{teacherId}
+  GET    /
+  POST   /{teacherId}/subjects/{subjectId}      assign subject
+  DELETE /{teacherId}/subjects/{subjectId}
+  GET    /{teacherId}/subjects
+
+FLOW
+  Admin creates User (TEACHER role)
+    -> POST /teachers
+    -> assign subjects
+    -> Classroom create uses this teacher as owner / co-teacher
+
+
+--------------------------------------------------------------------------------
+2.11  CLASSROOM
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.classroom
+API         : /api/v1/classrooms
+Tables      : classrooms, classroom_members, classroom_permissions
+Published   : ClassroomAccessService
+Events      : ClassroomCreatedEvent, ClassroomMemberAddedEvent
+Module code : CLASSROOM
+
+WORKING
+  Hub of the LMS. A classroom has an owner, student members, optional
+  co-teachers, archive flag, and per-action permission modes
+  (who may post, who may chat, etc.).
+  ClassroomAccessService is the most-consumed interface in the app:
+  assignment, attendance, material, syllabus, chat, meeting,
+  announcement and dashboard all ask it "is this user allowed to do X
+  in this room?"
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V3, Spring events, ModuleAccessGuard,
+  permissions CLASSROOM_CREATE / UPDATE / DELETE / VIEW /
+  MEMBER_MANAGE / PERMISSION_MANAGE.
+
+ENDPOINTS
+  POST   /                         create
+  GET    /my                       my rooms (optional archived)
+  GET    /                         all rooms in college
+  GET    /{classroomId}
+  PUT    /{classroomId}
+  POST   /{classroomId}/archive
+  POST   /{classroomId}/unarchive
+  DELETE /{classroomId}
+  GET    /{classroomId}/members
+  POST   /{classroomId}/students
+  POST   /{classroomId}/teachers
+  DELETE /{classroomId}/members/{userId}
+  GET    /{classroomId}/permissions
+  PUT    /{classroomId}/permissions
+
+FLOW
+  Teacher / admin (CLASSROOM_CREATE)
+    -> ModuleAccessGuard CLASSROOM
+    -> persist classroom + owner membership + default permissions
+    -> publish ClassroomCreatedEvent
+    -> NotificationEventListener (after commit, async) notifies members
+  Add students
+    -> classroom_members
+    -> ClassroomMemberAddedEvent
+    -> other modules can now authorize those userIds
+
+
+--------------------------------------------------------------------------------
+2.12  ATTENDANCE
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.attendance
+API         : /api/v1/attendance
+Tables      : attendance_sessions, attendance_records
+Events      : AttendanceMarkedEvent
+Module code : ATTENDANCE
+
+WORKING
+  Teacher opens a session for a classroom/subject/date, marks each
+  student (present / absent / late / excused), can correct records,
+  then locks the session so it cannot be silently rewritten.
+  Students see /me history and percentage. Teachers see a classroom
+  report. Subject names come from AcademicLookupService; membership
+  from ClassroomAccessService.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V4, ClassroomAccessService,
+  AcademicLookupService, StudentLookupService, Spring events,
+  permissions ATTENDANCE_CREATE / UPDATE / VIEW.
+
+ENDPOINTS
+  POST /sessions
+  GET  /sessions/{sessionId}
+  GET  /classrooms/{classroomId}/sessions
+  POST /sessions/{sessionId}/records          mark
+  PUT  /sessions/{sessionId}/records          bulk update
+  PUT  /records/{recordId}                    single update
+  POST /sessions/{sessionId}/lock
+  GET  /me?classroomId=
+  GET  /classrooms/{classroomId}/students/{studentUserId}/percentage
+  GET  /classrooms/{classroomId}/report
+
+FLOW
+  Teacher
+    -> assert CLASSROOM + ATTENDANCE modules, classroom permission
+    -> create session (one per classroom/subject/date rules)
+    -> mark records for member student user ids
+    -> lock
+    -> AttendanceMarkedEvent -> notifications / audit
+
+
+--------------------------------------------------------------------------------
+2.13  SYLLABUS
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.syllabus
+API         : /api/v1/syllabus
+Tables      : syllabi, syllabus_units, syllabus_topics
+Events      : SyllabusTopicCompletedEvent
+Module code : SYLLABUS
+
+WORKING
+  Published teaching plan for a subject (optionally bound to a
+  classroom). Hierarchy: Syllabus -> Units -> Topics.
+  Teachers mark topics complete; progress is computed as
+  completed topics / total topics. Material can link to a topicId.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V6, ClassroomAccessService,
+  AcademicLookupService, Spring events, permissions SYLLABUS_MANAGE /
+  SYLLABUS_VIEW.
+
+ENDPOINTS
+  POST   /
+  PUT    /{syllabusId}
+  DELETE /{syllabusId}
+  GET    /                         filter subjectId, classroomId, published
+  GET    /{syllabusId}
+  GET    /{syllabusId}/progress
+  POST   /{syllabusId}/units
+  PUT    /units/{unitId}
+  DELETE /units/{unitId}
+  POST   /units/{unitId}/topics
+  PUT    /topics/{topicId}
+  DELETE /topics/{topicId}
+  PATCH  /topics/{topicId}/completion
+
+FLOW
+  Teacher
+    -> create syllabus for subject (+ classroom)
+    -> add units and topics
+    -> publish (list filter published=true for students)
+    -> mark topic completed
+    -> SyllabusTopicCompletedEvent -> notification
+
+
+--------------------------------------------------------------------------------
+2.14  ASSIGNMENT
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.assignment
+API         : /api/v1/assignments
+Tables      : assignments, assignment_attachments,
+              assignment_submissions, submission_attachments
+Events      : AssignmentPublishedEvent, AssignmentSubmittedEvent,
+              AssignmentGradedEvent
+Module code : ASSIGNMENT
+
+WORKING
+  Teacher creates a draft assignment on a classroom, attaches files
+  (file_id soft-refs into the file module), publishes it, students
+  submit (text + files) before due date, teacher grades.
+  Status lifecycle: draft -> published -> closed.
+  Students may update their own submission until closed/graded.
+  File bytes are never stored here — only file_id.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V6, FileStorageService / FileLookupService,
+  ClassroomAccessService, Spring events, permissions ASSIGNMENT_CREATE /
+  UPDATE / DELETE / VIEW / SUBMIT / GRADE.
+
+ENDPOINTS
+  POST   /
+  PUT    /{assignmentId}
+  POST   /{assignmentId}/publish
+  POST   /{assignmentId}/close
+  DELETE /{assignmentId}
+  GET    /?classroomId=&status=
+  GET    /my
+  GET    /{assignmentId}
+  POST   /{assignmentId}/submissions
+  GET    /{assignmentId}/submissions
+  GET    /submissions/my
+  GET    /submissions/{submissionId}
+  PUT    /submissions/{submissionId}
+  POST   /submissions/{submissionId}/grade
+
+FLOW
+  Teacher  POST /assignments          draft + attachment fileIds
+           POST /{id}/publish         AssignmentPublishedEvent
+                                      -> notify classroom students
+  Student  POST /{id}/submissions     FileLookupService validates fileIds
+                                      AssignmentSubmittedEvent
+                                      -> notify teacher
+  Teacher  POST /submissions/{id}/grade
+                                      AssignmentGradedEvent
+                                      -> notify student
+
+
+--------------------------------------------------------------------------------
+2.15  MATERIAL  (study material)
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.material
+API         : /api/v1/materials
+Tables      : study_materials
+Events      : MaterialUploadedEvent
+Module code : STUDY_MATERIAL
+
+WORKING
+  Metadata record pointing at an already-uploaded stored file
+  (file_id is a soft reference). Can be scoped to classroom, subject
+  and/or syllabus topic. Upload here means "publish a material row",
+  not "store bytes" — bytes go through the file module first.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V6, FileStorageService / FileLookupService,
+  ClassroomAccessService, AcademicLookupService, Spring events,
+  permissions MATERIAL_UPLOAD / DELETE / VIEW.
+
+ENDPOINTS
+  POST   /                         publish material
+  PUT    /{materialId}
+  DELETE /{materialId}
+  GET    /                         filter classroomId, subjectId, topicId
+  GET    /{materialId}
+
+FLOW
+  Teacher
+    -> POST /files  (multipart)     -> StoredFileRef.fileId
+    -> POST /materials { fileId, classroomId, subjectId, topicId, type }
+    -> MaterialUploadedEvent -> notify classroom
+
+
+--------------------------------------------------------------------------------
+2.16  ANNOUNCEMENT
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.announcement
+API         : /api/v1/announcements
+Tables      : announcements
+Events      : AnnouncementPublishedEvent
+Module code : ANNOUNCEMENT
+
+WORKING
+  Draft then publish. Audience can be college-wide, classroom, or
+  department. visibleToMe returns only announcements the caller is
+  allowed to see, newest published first.
+  NOTE: department-targeted announcements currently fan out to the
+  whole college (no department-membership lookup is published yet).
+  They still require COLLEGE_ADMIN so the audience cannot be widened
+  by a regular teacher.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V5, ClassroomAccessService, Spring events,
+  STOMP topic /topic/college/{collegeId} (optional live push),
+  permissions ANNOUNCEMENT_CREATE / DELETE / VIEW.
+
+ENDPOINTS
+  POST   /
+  POST   /{announcementId}/publish
+  DELETE /{announcementId}
+  GET    /                         visible to me
+  GET    /{announcementId}
+
+FLOW
+  Admin / teacher
+    -> create draft
+    -> publish
+    -> AnnouncementPublishedEvent
+    -> NotificationEventListener writes in-app notifications
+    -> optional Kafka erp.notifications
+
+
+--------------------------------------------------------------------------------
+2.17  CHAT
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.chat
+API         : /api/v1/chat
+STOMP       : /app/chat/send , /app/chat/join
+              subscribe /topic/chat/{chatRoomId}
+Tables      : chat_rooms, chat_participants, chat_messages
+Events      : ChatMessageSentEvent
+Module code : CHAT
+
+WORKING
+  Two room types: classroom room (get-or-create per classroom) and
+  direct room (pair of users). REST covers history, unread, read
+  receipts, permission mode, and a fallback send for clients without
+  a live socket. Live send uses STOMP. Sender identity is taken from
+  the session principal, never from the payload. File messages store
+  file_id only. Permission mode on a room (who may post) is owned
+  here and checked against classroom role.
+
+TECHNOLOGIES USED
+  Spring Web MVC, Spring WebSocket + STOMP, SimpMessagingTemplate,
+  Spring Data JPA, MySQL V7, FileLookupService, ClassroomAccessService,
+  permissions CHAT_VIEW / CHAT_SEND.
+
+ENDPOINTS
+  POST   /direct-rooms
+  POST   /classroom-rooms/{classroomId}
+  GET    /rooms/{chatRoomId}/messages
+  POST   /rooms/{chatRoomId}/read
+  GET    /unread-counts
+  POST   /messages                              REST fallback send
+  PATCH  /rooms/{chatRoomId}/permission-mode
+  DELETE /messages/{messageId}
+
+STOMP
+  /app/chat/send   -> persist + broadcast /topic/chat/{roomId}
+  /app/chat/join   -> presence / participant check
+  errors           -> /user/queue/errors  (sender only)
+
+FLOW
+  Client CONNECT /ws + JWT
+    -> SUBSCRIBE /topic/chat/{roomId}  (authorizer: must be participant)
+    -> SEND /app/chat/send { chatRoomId, content, messageType, fileId }
+    -> ChatWebSocketController asserts CHAT_SEND on principal
+    -> ChatService persists chat_messages, updates unread
+    -> broadcast to room
+    -> ChatMessageSentEvent -> optional notification for offline users
+
+
+--------------------------------------------------------------------------------
+2.18  MEETING  (video conference)
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.meeting
+API         : /api/v1/meetings
+STOMP       : /app/meeting/signal
+              subscribe /topic/meeting/{meetingId}
+              /user/queue/signal
+Tables      : meetings, meeting_participants
+Events      : MeetingScheduledEvent, MeetingStartedEvent
+Module code : VIDEO_CONFERENCE
+
+WORKING
+  Backend owns scheduling, participants, lifecycle and WebRTC
+  signaling ONLY. It never carries audio or video.
+  Lifecycle is separate endpoints (not a free-form status field):
+  scheduled -> started -> ended, or cancelled.
+  Join returns a MeetingJoinResponse (join URL / room credentials
+  from VideoConferenceProvider). Default provider is
+  InternalWebRtcProvider. Signaling frames (OFFER, ANSWER,
+  ICE_CANDIDATE) are relayed to a target peer; JOIN/LEAVE go to
+  the meeting topic. Every signal frame is re-authorized
+  (participant must still be active).
+
+TECHNOLOGIES USED
+  Spring Web MVC, Spring WebSocket + STOMP, WebRTC signaling
+  (SDP / ICE relay), VideoConferenceProvider SPI (swap Jitsi /
+  LiveKit / Agora without touching business code), MySQL V7,
+  ClassroomAccessService, permissions MEETING_CREATE / UPDATE /
+  JOIN / VIEW.
+
+ENDPOINTS
+  POST /                         schedule
+  PUT  /{meetingId}
+  POST /{meetingId}/cancel
+  POST /{meetingId}/start
+  POST /{meetingId}/end
+  POST /{meetingId}/join
+  POST /{meetingId}/leave
+  GET  /{meetingId}
+  GET  /upcoming
+  GET  /classrooms/{classroomId}
+
+STOMP
+  /app/meeting/signal  { meetingId, type, targetUserId, payload }
+    OFFER / ANSWER / ICE_CANDIDATE -> /user/queue/signal of peer
+    JOIN / LEAVE                   -> /topic/meeting/{meetingId}
+
+FLOW
+  Teacher schedules meeting on classroom
+    -> MeetingScheduledEvent -> notify members
+  Host starts
+    -> MeetingStartedEvent -> notify
+  Participant POST /meetings/{id}/join
+    -> provider issues join info
+    -> browser WebRTC
+    -> signaling through /app/meeting/signal
+    -> media P2P or SFU, never through this service
+
+
+--------------------------------------------------------------------------------
+2.19  NOTIFICATION
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.notification
+API         : /api/v1/notifications
+Tables      : notifications, device_tokens
+Published   : NotificationDispatcher
+STOMP       : /user/queue/notifications
+Module code : NOTIFICATION
+
+WORKING
+  In-app inbox driven by domain events. NotificationEventListener is
+  @TransactionalEventListener + @Async: a rolled-back assignment never
+  produces a notification, and ThreadLocal is rebuilt from the event
+  payload. Optional Kafka topic erp.notifications; consumers
+  deduplicate on DomainEvent.eventKey() in Redis.
+  PushNotificationProvider is a SPI (noop by default; Firebase can
+  be plugged in). Device tokens are registered per platform.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V5, Spring events, Spring Async,
+  optional Kafka + Redis dedup, STOMP user queues,
+  PushNotificationProvider SPI, permissions NOTIFICATION_VIEW.
+
+ENDPOINTS
+  GET    /                         my inbox (unreadOnly)
+  GET    /unread-count
+  PATCH  /{notificationId}/read
+  PATCH  /read-all
+  POST   /device-tokens
+  GET    /device-tokens
+  PATCH  /device-tokens/{id}/deactivate
+  DELETE /device-tokens/{id}
+
+EVENTS CONSUMED
+  ClassroomCreated, ClassroomMemberAdded
+  AttendanceMarked
+  SyllabusTopicCompleted
+  AssignmentPublished, AssignmentSubmitted, AssignmentGraded
+  MaterialUploaded
+  AnnouncementPublished
+  ChatMessageSent
+  MeetingScheduled, MeetingStarted
+
+FLOW
+  Any module publishes DomainEvent after business commit
+    -> NotificationEventListener
+    -> NotificationService inserts rows
+    -> SimpMessagingTemplate -> /user/queue/notifications
+    -> if Kafka on: publish erp.notifications (idempotent consume)
+    -> if push on: PushNotificationProvider.send(device tokens)
+
+
+--------------------------------------------------------------------------------
+2.20  FILE
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.file
+API         : /api/v1/files
+Tables      : stored_files
+Published   : FileStorageService, FileLookupService
+Module code : used by ASSIGNMENT, STUDY_MATERIAL, CHAT (not toggled itself)
+
+WORKING
+  Owns file lifecycle. Business tables hold file_id only (soft
+  reference) so deleting a material/assignment must not delete bytes
+  used elsewhere. Provider is swappable: LocalFileStorageProvider
+  today; MinIO / S3 implement FileStorageProvider with no change to
+  callers. Max size 25 MB (configurable). Download streams a
+  Resource with original filename.
+
+TECHNOLOGIES USED
+  Spring Multipart, FileStorageProvider SPI, local disk
+  (STORAGE_LOCAL_PATH), MySQL V6, TenantAware metadata.
+
+ENDPOINTS  (any authenticated user)
+  POST   /                 multipart, category=general|assignment|material|chat
+  GET    /{fileId}         download
+  GET    /{fileId}/metadata
+  DELETE /{fileId}
+
+FLOW
+  Client multipart POST /files
+    -> validate size / type
+    -> provider.store(bytes)
+    -> insert stored_files (college_id, path, contentType, size)
+    -> return StoredFileRef
+  Assignment / Material / Chat
+    -> FileLookupService.assertOwned(fileId, collegeId)
+    -> save file_id on their row
+
+
+--------------------------------------------------------------------------------
+2.21  DASHBOARD
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.dashboard
+API         : /api/v1/dashboard
+Tables      : none (read-only aggregates over other modules)
+Module code : reads CLASSROOM / ASSIGNMENT / ATTENDANCE / ... if enabled
+
+WORKING
+  Role-specific home screens. Uses published lookup interfaces and
+  DashboardQueries (native/JPQL aggregates). Does not own tables.
+  Teacher classroom names are resolved through ClassroomAccessService
+  (one call per owned classroom); counts are single queries.
+
+TECHNOLOGIES USED
+  Spring Data JPA aggregate queries, ClassroomAccessService,
+  StudentLookupService, permission DASHBOARD_VIEW
+  (+ COLLEGE_ADMIN role for the admin board).
+
+ENDPOINTS
+  GET /student
+  GET /teacher
+  GET /college-admin          COLLEGE_ADMIN only
+
+FLOW
+  Authenticated user GET /dashboard/{role}
+    -> DashboardService checks role + college
+    -> query counts: classrooms, pending assignments, attendance %,
+       upcoming meetings, unread notifications
+    -> return typed DTO
+
+
+--------------------------------------------------------------------------------
+2.22  AUDIT
+--------------------------------------------------------------------------------
+
+Package     : com.CoreService.CoreService.audit
+API         : /api/v1/audit
+Tables      : audit_logs
+Published   : AuditRecorder
+Module code : (college-admin / platform)
+
+WORKING
+  Append-only trail of sensitive actions. Listeners are
+  @TransactionalEventListener + @Async and write with
+  REQUIRES_NEW so a failed audit insert cannot roll back business
+  data, and a failed business txn never writes an audit row.
+  user_id has NO foreign key — the trail outlives the account.
+  Search by action, resourceType, userId, from/to.
+
+TECHNOLOGIES USED
+  Spring Data JPA, MySQL V5, Spring events, REQUIRES_NEW
+  transactions, permission AUDIT_VIEW.
+
+ENDPOINTS
+  GET /?action=&resourceType=&userId=&from=&to=&page=&size=
+
+FLOW
+  Service records via AuditRecorder or domain event
+    -> AuditEventListener after commit
+    -> new transaction insert audit_logs
+    -> COLLEGE_ADMIN searches GET /audit
+
+
+================================================================================
+3. CROSS-MODULE INTERFACES
+================================================================================
+
+  Interface                 Owner          Consumers
+  ------------------------  -------------  ------------------------------------
+  ClassroomAccessService    classroom      assignment, attendance, material,
+                                           syllabus, chat, meeting,
+                                           announcement, dashboard
+  AcademicLookupService     academic       attendance, syllabus, teacher,
+                                           material
+  StudentLookupService      student        dashboard, attendance
+  FileStorageService        file           material, assignment, chat
+  FileLookupService         file           material, assignment, chat
+  NotificationDispatcher    notification   event listeners only
+  AuditRecorder             audit          any sensitive action
+  ModuleAccessGuard         module         every feature module
+  VideoConferenceProvider   meeting        meeting service only
+  PushNotificationProvider  notification   notification dispatch
+  FileStorageProvider       file           file service only
+
+
+================================================================================
+4. DATABASE MAP (Flyway)
+================================================================================
+
+  Script                                           Tables
+  -----------------------------------------------  ----------------------------
+  V1__core_schema.sql                              colleges, users,
+                                                   auth_refresh_tokens, roles,
+                                                   permissions, user_roles,
+                                                   role_permissions,
+                                                   system_modules,
+                                                   college_modules
+  V2__academic_schema.sql                          departments, sessions,
+                                                   programs, semesters,
+                                                   subjects, students,
+                                                   teachers, teacher_subjects
+  V3__classroom_schema.sql                         classrooms,
+                                                   classroom_members,
+                                                   classroom_permissions
+  V4__attendance_schema.sql                        attendance_sessions,
+                                                   attendance_records
+  V5__notification_announcement_audit_schema.sql   notifications, device_tokens,
+                                                   announcements, audit_logs
+  V6__learning_schema.sql                          stored_files, syllabi,
+                                                   syllabus_units,
+                                                   syllabus_topics,
+                                                   assignments + attachments,
+                                                   submissions + attachments,
+                                                   study_materials
+  V7__communication_schema.sql                     chat_rooms,
+                                                   chat_participants,
+                                                   chat_messages, meetings,
+                                                   meeting_participants
+
+Rules
+  - Hibernate ddl-auto=validate (never creates schema)
+  - UUID keys stored as varchar(36)
+  - Enums stored as varchar, not MySQL native ENUM
+  - Tenant tables always have college_id + ON DELETE CASCADE from colleges
+  - file_id columns are soft references (no FK to stored_files)
+
+
+================================================================================
+5. END-TO-END PLATFORM FLOW
+================================================================================
+
+This is the full path from an empty database to a student submitting
+work and sitting in a live class.
+
+
+STEP A — BOOTSTRAP
+  Application starts
+    -> Flyway applies V1..V7
+    -> seed permissions, system_modules, MAIN_ADMIN role
+    -> create platform admin (password logged once if not set)
+    -> Redis + (optional) Kafka connect
+    -> HTTP :8082 and STOMP /ws up
+
+
+STEP B — PROVISION A COLLEGE
+  MAIN_ADMIN POST /auth/login
+    -> JWT (no collegeId)
+  MAIN_ADMIN POST /college
+    -> college + default roles + COLLEGE_ADMIN user + modules
+  MAIN_ADMIN POST /college-modules  (or included in provision)
+    -> enable CLASSROOM, ASSIGNMENT, ATTENDANCE, CHAT, ...
+
+
+STEP C — COLLEGE ADMIN SETS UP PEOPLE AND STRUCTURE
+  Login as COLLEGE_ADMIN  (X-College-Id not needed; college is in JWT)
+
+  Academic
+    departments -> programs -> current session -> semesters -> subjects
+
+  Users
+    POST /users  (teachers, students) + assign roles
+    POST /teachers  + assign subjects
+    POST /students  (link user to program/semester)
+
+  Classrooms
+    POST /classrooms
+    POST /{id}/students   and   /{id}/teachers
+    PUT  /{id}/permissions
+
+
+STEP D — EVERY SUBSEQUENT HTTP REQUEST
+  Client
+    -> RateLimitFilter (Redis)
+    -> JwtFilter (signature, expiry, jti not blacklisted)
+    -> UserContext + CollegeContext from token
+    -> @PreAuthorize (role / permission)
+    -> Controller (DTO only)
+    -> Service
+         ModuleAccessGuard.assertModuleEnabled(...)
+         TenantGuard.assertSameCollege(...)
+         ClassroomAccessService.assertPermission(...)   if room-scoped
+         business rules + @Transactional
+         persist via repository (always filter college_id)
+         publish DomainEvent
+    -> ApiResponse
+  After commit
+    -> NotificationEventListener (@Async)
+    -> AuditEventListener (@Async, REQUIRES_NEW)
+    -> optional Kafka
+
+
+STEP E — TEACHING LOOP (one classroom)
+  Syllabus     create units/topics, mark progress
+  Material     POST /files then POST /materials
+  Assignment   create -> publish -> student submit -> grade
+  Attendance   create session -> mark -> lock
+  Announcement create -> publish  (classroom or college)
+  Each of these emits events -> in-app notification
+    (+ STOMP /user/queue/notifications)
+
+
+STEP F — REAL-TIME CHAT
+  Client opens WebSocket /ws
+    -> CONNECT with Bearer JWT  (WebSocketAuthChannelInterceptor)
+    -> REST POST /chat/classroom-rooms/{classroomId}
+    -> SUBSCRIBE /topic/chat/{roomId}
+         WebSocketDestinationAuthorizer: participant + same college
+    -> SEND /app/chat/send
+    -> persist + broadcast + unread counters
+
+
+STEP G — LIVE MEETING
+  Teacher POST /meetings  (schedule)  -> notify
+  Teacher POST /meetings/{id}/start   -> notify
+  Each member POST /meetings/{id}/join
+    -> VideoConferenceProvider returns join info
+  Browsers exchange OFFER / ANSWER / ICE via /app/meeting/signal
+  Media flows peer-to-peer (or external SFU), not through core-service
+  Host POST /meetings/{id}/end
+
+
+STEP H — DASHBOARDS AND AUDIT
+  Student   GET /dashboard/student     assignments due, attendance %,
+                                       unread, upcoming meetings
+  Teacher   GET /dashboard/teacher     owned rooms, pending grades
+  Admin     GET /dashboard/college-admin
+            GET /audit?action=&from=&to=
+
+
+STEP I — LOGOUT / PASSWORD CHANGE
+  POST /auth/logout
+    -> refresh token deleted
+    -> access jti blacklisted in Redis
+  Password change / reset
+    -> all refresh tokens for that user deleted
+    -> old access tokens die at expiry or on blacklist
+
+
+================================================================================
+6. TYPICAL LAYER FLOW INSIDE ONE MODULE
+================================================================================
+
+  HTTP / STOMP
+       |
+       v
+  Controller          validate DTO, no business logic
+       |
+       v
+  Service             @Transactional
+                      ModuleAccessGuard
+                      TenantGuard
+                      ClassroomAccessService (if needed)
+                      rules, state machine, events
+       |
+       +---- Repository ---- MySQL (college_id predicate)
+       |
+       +---- FileStorageService / AcademicLookupService / ...
+       |
+       +---- ApplicationEventPublisher.publishEvent(...)
+                 |
+                 +-- after commit --> NotificationEventListener (@Async)
+                 +-- after commit --> AuditEventListener (@Async)
+
+
+================================================================================
+7. SECURITY AND TENANCY (applies to all modules)
+================================================================================
+
+  Authentication     JWT access (15 min) + rotating refresh (7 days, MySQL)
+  Authorization      dynamic RBAC  Role -> RolePermission -> Permission
+  Module gating      college_modules.enabled via ModuleAccessGuard + Redis cache
+  Classroom gating   ClassroomAccessService.assertPermission
+  Tenant isolation   college_id from JWT; repositories filter; TenantGuard
+                     cross-tenant = 404
+  MAIN_ADMIN         no college; optional header X-College-Id
+  WebSocket          CONNECT authenticated; SUBSCRIBE deny-by-default
+  Rate limit         Redis, 300 rpm general, 20 rpm on /api/v1/auth/**
+  Passwords          BCrypt; never in JSON
+  Errors             no stack traces, no internal messages
+
+
+================================================================================
+8. EXTENSION POINTS (wired, not fully implemented)
+================================================================================
+
+  Password reset email     OTP is stored; no mail transport yet
+  Push notifications       PushNotificationProvider = noop
+  Object storage           only LocalFileStorageProvider
+  Video SFU                only InternalWebRtcProvider
+                           (unknown MEETING_PROVIDER fails startup on purpose)
+  Kafka                    optional; app works fully with KAFKA_ENABLED=false
+
+
+================================================================================
+9. HOW TO READ THE CODE
+================================================================================
+
+  Feature modules follow:
+    controller / service / repository / entity / dto / mapper / enums / event
+
+  Older packages keep capitalised folders but behave the same:
+    College, Permission, module, auth, user, role
+
+  Interactive API map:
+    http://localhost:8082/swagger-ui.html
+    http://localhost:8082/v3/api-docs
+
+================================================================================
+  End of document
+================================================================================

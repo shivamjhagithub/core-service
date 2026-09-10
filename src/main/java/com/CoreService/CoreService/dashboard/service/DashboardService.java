@@ -7,6 +7,7 @@ import com.CoreService.CoreService.dashboard.dto.CollegeAdminDashboardResponse;
 import com.CoreService.CoreService.dashboard.dto.CollegeAdminDashboardResponse.Totals;
 import com.CoreService.CoreService.dashboard.dto.StudentDashboardResponse;
 import com.CoreService.CoreService.dashboard.dto.TeacherDashboardResponse;
+import com.CoreService.CoreService.dashboard.dto.TeacherDashboardResponse.ClassroomStudentAttendance;
 import com.CoreService.CoreService.dashboard.dto.TeacherDashboardResponse.ClassroomSummary;
 import com.CoreService.CoreService.dashboard.repository.DashboardQueries;
 import lombok.RequiredArgsConstructor;
@@ -73,10 +74,9 @@ public class DashboardService {
             return TeacherDashboardResponse.empty();
         }
 
-        Map<UUID, Long> studentCounts = dashboardQueries.studentCountsByClassroom(collegeId, classroomIds);
-
         return new TeacherDashboardResponse(
-                classroomSummaries(classroomIds, studentCounts),
+                classroomSummaries(classroomIds,
+                        dashboardQueries.studentAttendanceByClassroom(collegeId, classroomIds)),
                 dashboardQueries.submissionsAwaitingGrading(collegeId, classroomIds),
                 dashboardQueries.upcomingMeetings(collegeId, classroomIds, Instant.now(), FEED_LIMIT),
                 dashboardQueries.recentActivity(collegeId, classroomIds, ACTIVITY_LIMIT));
@@ -101,13 +101,18 @@ public class DashboardService {
      * Names come from the classroom module rather than from a join, because the
      * dashboard is not allowed to own a second reading of the classroom schema.
      */
-    private List<ClassroomSummary> classroomSummaries(List<UUID> classroomIds, Map<UUID, Long> studentCounts) {
+    private List<ClassroomSummary> classroomSummaries(
+            List<UUID> classroomIds,
+            Map<UUID, List<ClassroomStudentAttendance>> attendanceByClassroom) {
+
         List<ClassroomSummary> summaries = new ArrayList<>(classroomIds.size());
         for (UUID classroomId : classroomIds) {
             try {
                 ClassroomRef classroom = classroomAccessService.requireClassroom(classroomId);
+                List<ClassroomStudentAttendance> students =
+                        List.copyOf(attendanceByClassroom.getOrDefault(classroomId, List.of()));
                 summaries.add(new ClassroomSummary(classroom.classroomId(), classroom.name(),
-                        classroom.active(), studentCounts.getOrDefault(classroomId, 0L)));
+                        classroom.active(), students.size(), students));
             } catch (RuntimeException ex) {
                 log.debug("Leaving classroom {} out of the dashboard: {}", classroomId, ex.toString());
             }

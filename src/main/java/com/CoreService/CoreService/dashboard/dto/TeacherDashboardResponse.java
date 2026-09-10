@@ -9,7 +9,25 @@ public record TeacherDashboardResponse(List<ClassroomSummary> classrooms,
                                        List<DashboardMeetingItem> upcomingMeetings,
                                        List<RecentActivity> recentActivity) {
 
-    public record ClassroomSummary(UUID classroomId, String name, boolean active, long studentCount) {
+    public record ClassroomSummary(UUID classroomId,
+                                  String name,
+                                  boolean active,
+                                  long studentCount,
+                                  List<ClassroomStudentAttendance> students) {
+    }
+
+    /**
+     * One enrolled student's attendance inside a classroom the teacher owns.
+     * PRESENT and LATE count as attended.
+     */
+    public record ClassroomStudentAttendance(String studentUserId,
+                                            String studentName,
+                                            long presentCount,
+                                            long lateCount,
+                                            long absentCount,
+                                            long excusedCount,
+                                            long totalCount,
+                                            double attendancePercentage) {
     }
 
     /**

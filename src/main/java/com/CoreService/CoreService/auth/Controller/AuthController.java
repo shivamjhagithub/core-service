@@ -9,20 +9,23 @@ import com.CoreService.CoreService.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Login, token lifecycle and password management")
 public class AuthController {
 
     private static final String BEARER = "Bearer ";
 
     private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        super();
+        this.authService = authService;
+    }
 
     @PostMapping("/login")
     @Operation(summary = "Exchange credentials for an access and refresh token")
