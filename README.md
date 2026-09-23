@@ -198,51 +198,70 @@ Jakarta Validation · Maven · Docker · JUnit 5 · Mockito
 
 ## Getting started
 
-### 1. Everything in Docker
+### Clone and run (MySQL + Redis already installed)
+
+**Need on the laptop:** JDK 21+, MySQL on `localhost:3306`, Redis on `localhost:6379`.
 
 ```bash
-cp .env.example .env
-# JWT_SECRET is required and has no default
-openssl rand -base64 48        # paste the result into JWT_SECRET in .env
-
-docker compose up --build
+git clone <your-repo-url>
+cd core-service
 ```
 
-The API is then on <http://localhost:8082>, Swagger UI on <http://localhost:8082/swagger-ui.html>.
-
-### 2. Infrastructure in Docker, application from your IDE
-
-```bash
-docker compose up -d mysql redis             # add kafka zookeeper if KAFKA_ENABLED=true
-export JWT_SECRET="$(openssl rand -base64 48)"
-./mvnw spring-boot:run
-```
-
-On Windows PowerShell:
+If your MySQL password is not `root`, set it before starting:
 
 ```powershell
-docker compose up -d mysql redis
-$env:JWT_SECRET = "replace-with-a-long-random-value"
+$env:DATABASE_PASSWORD = "your-mysql-password"
+```
+
+**Windows — one command:**
+
+```bat
+run.bat
+```
+
+**Or:**
+
+```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-### 3. First login
-
-On an empty database the platform operator is created automatically. If `BOOTSTRAP_ADMIN_PASSWORD` is not
-set, a random password is generated and logged **once** at startup:
-
+```bash
+./mvnw spring-boot:run
 ```
-Created platform admin 'MainAdmin001' with a generated password: <copy this>
-```
+
+Then open:
+
+- API — <http://localhost:8082>
+- Swagger — <http://localhost:8082/swagger-ui.html>
+
+**First login** (created automatically on an empty DB):
+
+| Field | Value |
+|---|---|
+| userId | `MainAdmin001` |
+| password | `Admin@123` |
 
 ```bash
 curl -X POST http://localhost:8082/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"userId":"MainAdmin001","password":"<password>"}'
+  -d '{"userId":"MainAdmin001","password":"Admin@123"}'
 ```
 
 Then, as `MAIN_ADMIN`: create a college, enable its modules, and create its `COLLEGE_ADMIN`. Use
 `X-College-Id: <collegeId>` to act inside a specific college.
+
+### Optional: everything in Docker
+
+```bash
+docker compose up --build
+```
+
+### Optional: infra in Docker, app from IDE
+
+```bash
+docker compose up -d mysql redis
+./mvnw spring-boot:run
+```
 
 ### Tests
 
@@ -266,12 +285,12 @@ core guarantee that a college A user cannot reach college B data.
 | `DATABASE_PASSWORD` | `root` | Database password |
 | `MYSQL_PORT` | `3306` | Host port for the MySQL container |
 | `DATABASE_POOL_SIZE` | `20` | Hikari maximum pool size |
-| **`JWT_SECRET`** | *(none — required)* | HMAC signing key, ≥ 32 bytes. The app refuses to start without it. |
+| `JWT_SECRET` | local-dev default | HMAC signing key — change for production |
 | `JWT_ACCESS_EXPIRATION` | `900000` | Access token lifetime (ms, 15 min) |
 | `JWT_REFRESH_EXPIRATION` | `604800000` | Refresh token lifetime (ms, 7 days) |
 | `BOOTSTRAP_ADMIN_USER_ID` | `MainAdmin001` | Platform operator user id |
 | `BOOTSTRAP_ADMIN_EMAIL` | `admin@college-erp.local` | Platform operator email |
-| `BOOTSTRAP_ADMIN_PASSWORD` | *(generated)* | Platform operator password |
+| `BOOTSTRAP_ADMIN_PASSWORD` | `Admin@123` | Platform operator password |
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis |
 | `KAFKA_ENABLED` | `false` | Turn on asynchronous Kafka processing |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka brokers |
@@ -284,7 +303,7 @@ core guarantee that a college A user cannot reach college B data.
 | `RATE_LIMIT_RPM` | `300` | Requests per minute per caller |
 | `RATE_LIMIT_AUTH_RPM` | `20` | Requests per minute on `/api/v1/auth/**` |
 
-No secret is hardcoded anywhere in the source tree.
+Local defaults are for development only — change `JWT_SECRET` and `BOOTSTRAP_ADMIN_PASSWORD` before any shared or production deploy.
 
 ---
 
